@@ -1,0 +1,121 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.borg.alion</groupId>
+    <artifactId>a-lion</artifactId>
+    <!-- <groupId>de.uni-mannheim.informatik.dws.melt</groupId> -->
+    <!-- <artifactId>external-python-matcher-web</artifactId><!-\- id used as matcher id in descriptor file of seals package and as the project name in gitlab (hobbit) -\-> -->
+    <packaging>jar</packaging>
+    <version>1.0</version><!-- version appearing in descriptor file of seals package and system.ttl file in hobbit -->
+    <description>External Python matcher demo</description><!-- description appearing in descriptor file of seals package and system.ttl file in hobbit -->
+    
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        
+        <oaei.mainClass>org.borg.alion.DemoPythonMatcher</oaei.mainClass><!-- mandatory: this class has to implement IOntologyMatchingToolBridge -->
+        <oaei.copyright>(C) Mannheim, 2021</oaei.copyright> <!--optional copyright appearing in the seals descriptor file -->
+        <oaei.license>GNU Lesser General Public License 2.1 or above</oaei.license> <!--optional license appearing in the seals descriptor file -->
+
+        <maven.deploy.skip>true</maven.deploy.skip><!-- needed to call mvn deploy without having a distributionManagement -->
+        <matching.version>3.0</matching.version> <!-- version for all matching related packages -->
+    </properties>
+    
+    
+    <dependencies>
+        <dependency>
+            <groupId>de.uni-mannheim.informatik.dws.melt</groupId>
+            <artifactId>matching-base</artifactId>
+            <version>${matching.version}</version>
+        </dependency>
+        
+        <!-- This dependency is necessary for web submission. It contains the server wrapper. -->
+        <dependency>
+            <groupId>de.uni-mannheim.informatik.dws.melt</groupId>
+            <artifactId>receiver-http</artifactId>
+            <version>${matching.version}</version>
+        </dependency>
+       
+        <dependency>
+            <groupId>de.uni-mannheim.informatik.dws.melt</groupId>
+            <artifactId>matching-eval</artifactId>
+            <version>${matching.version}</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.30</version>
+        </dependency>
+    <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java-core</artifactId>
+      <version>3.2.7</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.docker-java</groupId>
+      <artifactId>docker-java-transport-httpclient5</artifactId>
+      <version>3.2.7</version>
+    </dependency>
+
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- the following plugin will generate a docker image and save it into the target folder -->
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>0.36.0</version>
+                <configuration>
+                  <!-- further machine configuration options: https://dmp.fabric8.io/#docker-machine
+                       Use the following line in case you have installed docker on windows or mac
+                       <machine><name>default</name></machine>
+                  -->
+		  <images>
+		    <image>
+		      <name>%a-%v-web</name>
+		      <build>
+			<from>python:3.6-slim</from>
+			<runCmds><!--ampersand (&) unfortunately needs to be encoded as &amp; in the run description-->
+			  <run>apt update</run>
+			  <run>yes|apt upgrade</run>
+			  <run>apt install -y --no-install-recommends -y build-essential gcc</run>
+			  <run>apt clean &amp;&amp; rm -rf /var/lib/apt/lists/*</run>
+			  <run>pip install numpy tensorflow==1.9.0 tqdm==4.62.2 Owlready2==0.33 six==1.15.0 fuzzywuzzy==0.18.0 beautifulsoup4==4.9.3 lxml</run>
+			  <run>apt update &amp;&amp; apt install -y default-jre</run>
+			</runCmds>
+			<assembly><descriptorRef>web</descriptorRef></assembly>
+			<cmd><shell>java -cp "${project.build.finalName}.${project.packaging}:lib/*" de.uni_mannheim.informatik.dws.melt.receiver_http.Main</shell></cmd>
+			<workdir>/maven</workdir>
+			<ports><port>8080</port></ports><!--port exposure to specify on which port the server runs -->
+		      </build>
+		    </image>
+		  </images>
+		  
+		  
+
+		</configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>de.uni-mannheim.informatik.dws.melt</groupId>
+                        <artifactId>matching-assembly</artifactId>
+                        <version>${matching.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>save</goal>
+                        </goals>
+                        <!--execute build and save when calling "mvn install" -->
+                        <phase>install</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

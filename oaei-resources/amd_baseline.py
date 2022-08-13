@@ -2,6 +2,7 @@ from AlignmentFormat import serialize_mapping_to_tmp_file
 from collections import defaultdict
 import numpy as np
 import random
+import logging
 import json
 from Config import Batch,Config
 from Trans import Trans
@@ -10,6 +11,7 @@ import os
 from bs4 import BeautifulSoup
 from owlready2 import onto_path, get_ontology 
 import io
+import sys
 from time import sleep
 import itertools
 from tqdm import tqdm
@@ -36,37 +38,37 @@ def read_ontology(file):
             labels = cl.label
             if len(labels)==0:
                 label = cl.name
-                label = label.lower().replace('_',' ')
-                label = label.replace('/',' ')
-                label = label.replace("-",' ')
-                label = label.replace("of",'')
-                label = label.replace("this",'')
-                label = label.replace("the",'')
-                label = label.replace("or",'')
-                label = label.replace("and",'')
-                label = label.replace("that",' ')
-                label = label.replace("by",' ')
-                label = label.replace(" ",'_')
-                label = label.replace("_a_",'_')
-                label = label.replace("_an_",'_')
-                label = label.replace("_",' ')
+                # label = label.lower().replace('_',' ')
+                # label = label.replace('/',' ')
+                # label = label.replace("-",' ')
+                # label = label.replace("of",'')
+                # label = label.replace("this",'')
+                # label = label.replace("the",'')
+                # label = label.replace("or",'')
+                # label = label.replace("and",'')
+                # label = label.replace("that",' ')
+                # label = label.replace("by",' ')
+                # label = label.replace(" ",'_')
+                # label = label.replace("_a_",'_')
+                # label = label.replace("_an_",'_')
+                # label = label.replace("_",' ')
                 label_list[label] = id_node 
             else:
                 for label in labels:
-                    label = label.lower().replace('_',' ')
-                    label = label.replace('/',' ')
-                    label = label.replace("-",' ')
-                    label = label.replace("of",'')
-                    label = label.replace("this",'')
-                    label = label.replace("the",'')
-                    label = label.replace("or",'')
-                    label = label.replace("and",'')
-                    label = label.replace("that",' ')
-                    label = label.replace("by",' ')
-                    label = label.replace(" ",'_')
-                    label = label.replace("_a_",'_')
-                    label = label.replace("_an_",'_')
-                    label = label.replace("_",' ')
+                    # label = label.lower().replace('_',' ')
+                    # label = label.replace('/',' ')
+                    # label = label.replace("-",' ')
+                    # label = label.replace("of",'')
+                    # label = label.replace("this",'')
+                    # label = label.replace("the",'')
+                    # label = label.replace("or",'')
+                    # label = label.replace("and",'')
+                    # label = label.replace("that",' ')
+                    # label = label.replace("by",' ')
+                    # label = label.replace(" ",'_')
+                    # label = label.replace("_a_",'_')
+                    # label = label.replace("_an_",'_')
+                    # label = label.replace("_",' ')
                     label_list[label] = id_node          
         id_node = id_node+1
     
@@ -274,14 +276,14 @@ def getTrainList(source_graph,target_graph):
         labels_target_syn,label_list = read_ontology(target_graph)
 
     for k in sorted(labels_source_syn.keys() & labels_target_syn.keys()):
-        train_list.append([labels_source_syn[k],labels_target_syn[k]])
-
+        #train_list.append([labels_source_syn[k],labels_target_syn[k]])
+        train_list.append((labels_source_syn[k],labels_target_syn[k]))
     label_list =[]
-    print("--------------------",label_list)
+    print("\t--------------------",label_list)
     labels = list(itertools.product(list(labels_source_syn), list(labels_target_syn)))
     for a, b in tqdm(labels):
         label_list.append([a,b])
-    print("--------------------","trainging ....")
+    print("\t--------------------","trainging ....")
     for i in tqdm(range(len(label_list))):
         strings1 = label_list[i][0]
         string1 = strings1.replace('_',' ')
@@ -291,8 +293,8 @@ def getTrainList(source_graph,target_graph):
         a  = labels_source_syn.get(str(strings1))
         b  = labels_target_syn.get(str(strings2))
         if fuzzs >= 97:
-            if [a,b] not in train_list:
-                train_list.append([a,b])
+            if (a,b) not in set(train_list):
+                train_list.append((a,b))
         # if len(train_list) <=10:
         #     if fuzzsp >=95:
         #         if [a,b] not in train_list:
@@ -300,7 +302,7 @@ def getTrainList(source_graph,target_graph):
         else:
             pass
 
-
+    train_list = [list(x) for x in train_list]
     return train_list
 
 
@@ -550,7 +552,7 @@ def match_rdflib(source_graph, target_graph, input_alignment):
     # return [('http://one.de', 'http://two.de', '=', 1.0)]
 
 
-    def get_file_from_url(location):
+def get_file_from_url(location):
     print("####running get_file_from_url---------------------------------")
     from urllib.parse import unquote, urlparse
     from urllib.request import url2pathname, urlopen
@@ -565,11 +567,14 @@ def match(source_url, target_url, input_alignment_url):
     #    source_file = "/home/zhapacfp/Github/testMvn/a-lion/data/mouse.owl"
     #    target_file = "/home/zhapacfp/Github/testMvn/a-lion/data/human.owl"
 
-    urllib.request.urlretrieve(source_url, "source.owl")
-    urllib.request.urlretrieve(target_url, "target.owl")
+    source_file = source_url
+    target_file = target_url
 
-    source_file = "source.owl"
-    target_file = "target.owl"
+    #urllib.request.urlretrieve(source_url, "source.owl")
+    #urllib.request.urlretrieve(target_url, "target.owl")
+
+    #source_file = "source.owl"
+    #target_file = "target.owl"
 
 
     # onto_source = get_ontology(source_url)
@@ -608,3 +613,23 @@ def match(source_url, target_url, input_alignment_url):
     alignment_file_url = serialize_mapping_to_tmp_file(resulting_alignment)
     return alignment_file_url
 
+
+def main(argv):
+    if len(argv) == 2:
+        print(match(argv[0], argv[1], None))
+    elif len(argv) >= 3:
+        if len(argv) > 3:
+            logging.error("Too many parameters but we will ignore them.")
+        print(match(argv[0], argv[1], argv[2]))
+    else:
+        logging.error(
+            "Too few parameters. Need at least two (source and target URL of ontologies"
+        )
+
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)s:%(message)s", level=logging.INFO
+    )
+    main(sys.argv[1:])

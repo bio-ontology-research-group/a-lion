@@ -44,9 +44,28 @@ def evaluate(input_file):
     X = []
     Y = []
     for k in mappings_index:
-        X.append(mappings_index[k][1])
-        Y.append(mappings_index[k][0])
+        X.append(mappings_index[k][1]) #pred
+        Y.append(mappings_index[k][0]) #true
+
+
+    #print(X,Y)
+    
 
     fpr, tpr, thresholds = roc_curve(Y, X, pos_label=1)
+    gmeans = np.sqrt(tpr * (1-fpr))
+    # locate the index of the largest g-mean
+    ix = np.argmax(gmeans)
+    roc_auc = auc(fpr, tpr)
+    best_threshold = thresholds[ix]
+
     avg_prec = average_precision_score(Y,X, pos_label = 1)
-    return avg_prec, auc(fpr, tpr)
+    X = [1 if x>=best_threshold else 0 for x in X]
+    
+    
+
+    print("best_threshold", best_threshold)
+    print("recal",recall_score(Y,X) )
+    print("precision", precision_score(Y,X))
+    print("f1_score", f1_score(Y,X))    
+
+    return avg_prec, roc_auc

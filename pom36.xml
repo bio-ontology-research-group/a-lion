@@ -78,14 +78,13 @@
 		    <image>
 		      <name>%a-%v-web</name>
 		      <build>
-			<from>python:3.8-slim</from>
+			<from>python:3.6-slim</from>
 			<runCmds><!--ampersand (&) unfortunately needs to be encoded as &amp; in the run description-->
 			  <run>apt update</run>
 			  <run>yes|apt upgrade</run>
 			  <run>apt install -y --no-install-recommends -y build-essential gcc</run>
 			  <run>apt clean &amp;&amp; rm -rf /var/lib/apt/lists/*</run>
-			  <run> pip install https://github.com/bio-ontology-research-group/mowl/releases/download/v0.1.0/mowl_borg-0.1.0-py3-none-any.whl</run>
-			  <run>pip install numpy tensorflow tqdm==4.62.2 Owlready2==0.33 six==1.15.0 fuzzywuzzy==0.18.0 beautifulsoup4==4.9.3 lxml</run>
+			  <run>pip install numpy tensorflow==1.9.0 tqdm==4.62.2 Owlready2==0.33 six==1.15.0 fuzzywuzzy==0.18.0 beautifulsoup4==4.9.3 lxml</run>
 			  <run>apt update &amp;&amp; apt install -y default-jre</run>
 			</runCmds>
 			<assembly><descriptorRef>web</descriptorRef></assembly>

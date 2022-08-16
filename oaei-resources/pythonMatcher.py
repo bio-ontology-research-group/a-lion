@@ -48,7 +48,7 @@ def alignmentMatch(source_url, target_url):
     aligns = []
     ent12ent2 = {}
     compute_embeddings(source_url, target_url)
-    threshold = 0.4
+    threshold = 0.73
     ent_ids_source,ent_ids_target,source_vecs,target_vecs = getID()
     source_list,target_list = getList()
     sim_dict, vec_alignments = getAligns(source_list, target_list, threshold)

@@ -17,6 +17,11 @@ path_id_entity_tar = "id_entity_tar.pkl"
 path_train_triples = "train_triples.pkl"
 path_model = "path_model"
 
+def format_value(value):
+    value = value.lower()
+    value = value.replace(" ", "_")
+    return value
+
 def getID():
 
     with open(path_id_entity_src, "rb") as f:
@@ -83,7 +88,27 @@ def compute_embeddings(source_path, target_path):
     source_graph = projector.project(source_ds.ontology)
     target_graph = projector.project(target_ds.ontology)
 
+    new_source_graph = []
+    for edge in source_graph:
+        if edge.rel() == "rdfs:label":
+            value = format_value(edge.dst())
+            new_source_graph.append(Edge(edge.src(), edge.rel(), value))
+            new_source_graph.append(Edge(value, "is_label_of", edge.src()))
+        else:
+            new_source_graph.append(edge)
+        
+    new_target_graph = []
+    for edge in target_graph:
+        if edge.rel() == "rdfs:label":
+            value = format_value(edge.dst())
+            new_target_graph.append(Edge(edge.src(), edge.rel(), value))
+            new_target_graph.append(Edge(value, "is_label_of", edge.src()))
+        else:
+            new_target_graph.append(edge)
 
+    source_graph = new_source_graph[:]
+    target_graph = new_target_graph[:]
+    
     source_graph_ents, _ = Edge.getEntitiesAndRelations(source_graph)
     target_graph_ents, _ = Edge.getEntitiesAndRelations(target_graph)
 
@@ -150,8 +175,8 @@ if __name__ == "__main__":
     
     source_emb_np = np.array(source_emb)
     target_emb_np = np.array(target_emb)
-    scores = cosine_similarity(source_emb_np, target_emb_np)
-
+    scores = cosine_similarity(source_emb_np, target_emb_np) # in range [-1, 1]
+    scores = (scores + 1)/2 # in range [0,1]
     source_cls_to_id = {v:k for k,v in enumerate(source_class_with_embs)}
     target_cls_to_id = {v:k for k,v in enumerate(target_class_with_embs)}
 

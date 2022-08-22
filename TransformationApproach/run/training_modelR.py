@@ -58,7 +58,7 @@ this_data.load_align_json("alignments.json")
 m_train = Trainer()
 # L1: if false L2norm is used
 m_train.build(this_data, dim=this_dim, batch_sizeK=batch_k, batch_sizeA=batch_a, a1=a1, a2=0.5, m1=margin, save_path = model_path, multiG_save_path = data_path, L1=L1)
-m_train.train_MTransE( epochs=100, save_every_epoch=100, lr=lr, a1=a1, a2=0.5, m1=margin, AM_fold=AM_folds, half_loss_per_epoch=150)
+m_train.train_MTransE( epochs=500, save_every_epoch=100, lr=lr, a1=a1, a2=0.5, m1=margin, AM_fold=AM_folds, half_loss_per_epoch=150)
 
 
 

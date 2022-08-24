@@ -18,25 +18,18 @@ from OntoL import Onto2KG , LexicalMatch
 import yaml
 #print(tf.version)
 
-print("GPU Available: ", tf.test.is_gpu_available())
 
-this_dim = 50
-
-
-print(sys.argv)
-
-if len(sys.argv) > 1:
-
-    config_file = sys.argv[1]
-
-    with open(config_file, "r") as f:
-        params = yaml.load(f, Loader=yaml.FullLoader)
+def get_embeddings(params, source_owl=None, target_owl=None):
 
     this_dim = params["embedding_size"]
     model_path = params["model_path"]
     data_path = params["data_path"]
-    source = params["source"]
-    target = params["target"]
+
+    if source_owl is None:
+        source_owl = params["source"]
+    if target_owl is None:
+        target_owl = params["target"]
+
     batch_k = params["batch_k"]
     batch_a = params["batch_a"]
     a1 = params["a1"]
@@ -45,27 +38,55 @@ if len(sys.argv) > 1:
     margin = params["margin"]
     AM_folds = params["AM_folds"]
     
+    KG1 = Onto2KG(source_owl,"source")
+    KG2 = Onto2KG(target_owl,"target")
+            
+    this_data = multiG(KG1, KG2)
+        
+    this_data.load_align_json("alignments.json")
+    
+    m_train = Trainer()
+    
+    m_train.build(
+        this_data,
+        dim=this_dim,
+        batch_sizeK=batch_k,
+        batch_sizeA=batch_a,
+        a1=a1, a2=0.5,
+        m1=margin,
+        save_path = model_path,
+        multiG_save_path = data_path,
+        L1=L1)
+    
+    m_train.train_MTransE(epochs=100,
+                          save_every_epoch=100,
+                          lr=lr, a1=a1,
+                          a2=0.5,
+                          m1=margin,
+                          AM_fold=AM_folds,
+                          half_loss_per_epoch=150)
+    
 
-#alignf = LexicalMatch(source,target,'anatomy')
-#this_data.load_align_list(alignf)
-
-KG1 = Onto2KG(source,"source")
-KG2 = Onto2KG(target,"target")
-#alignments = LexicalMatch(source,target,"test")
+if __name__ == "__main__":
+    
+    print("GPU Available: ", tf.test.is_gpu_available())
+    
 
 
+    if len(sys.argv) > 1: #from command line
+        print(sys.argv)
+        config_file = sys.argv[1]
 
-print("------------------------------------------------------")
-#import mowl
-this_data = multiG(KG1, KG2)
-#this_data.load_align_list(alignments)
-# if alignemnt file exist use:
-this_data.load_align_json("alignments.json")
+        with open(config_file, "r") as f:
+            params = yaml.load(f, Loader=yaml.FullLoader)
 
-m_train = Trainer()
-# L1: if false L2norm is used
-m_train.build(this_data, dim=this_dim, batch_sizeK=batch_k, batch_sizeA=batch_a, a1=a1, a2=0.5, m1=margin, save_path = model_path, multiG_save_path = data_path, L1=L1)
-m_train.train_MTransE( epochs=100, save_every_epoch=100, lr=lr, a1=a1, a2=0.5, m1=margin, AM_fold=AM_folds, half_loss_per_epoch=150)
+        get_embeddings(params)
+
+    else:
+        print("ERROR: Calling from command line requires passing config file as first argument: python training_modelR.py config.yaml")
+        
+
+    
 
 
 

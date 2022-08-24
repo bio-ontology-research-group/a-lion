@@ -1,0 +1,13 @@
+
+embedding_size: 128
+model_path: "results/Testing_anatomy/model" 
+data_path: "data/Testing_anatomy/model"
+source: "data/Testing_anatomy/human.owl"
+target: "data/Testing_anatomy/mouse.owl"
+batch_k: 64
+batch_a: 16
+a1: 1
+L1: 1
+lr: 0.01
+margin: 1
+AM_folds: 10

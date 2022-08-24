@@ -1,0 +1,2 @@
+model_checkpoint_path: "Testing_anatomy"
+all_model_checkpoint_paths: "Testing_anatomy"

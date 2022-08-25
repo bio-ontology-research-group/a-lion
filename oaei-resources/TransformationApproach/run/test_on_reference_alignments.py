@@ -31,7 +31,7 @@ model_file = sys.argv[1]
 data_file = sys.argv[2]
 reference_alignment_file  = sys.argv[3]
 topk = int(sys.argv[4])
-threshold = int(sys.argv[5])
+threshold = float(sys.argv[5])
 test_name = sys.argv[6]
 tester = Tester()
 tester.build(save_path = model_file, data_save_path = data_file)

@@ -202,7 +202,6 @@ def lex_ma_from_dic(lab,k,dic,r):
 #takes 2 ontologies, return the lexical matching pairs of alignments
 def LexicalMatch(source, target,txt):
 
-	
 	print("load ontology 1")
 	onto1 = get_ontology(source)
 	onto1.load()
@@ -212,6 +211,7 @@ def LexicalMatch(source, target,txt):
 	ont1_label2class = {}
 	for cl in onto1.classes():        
 		labels = cl.label
+		ont1_label2class[cl.name.lower()]= base1+cl.name
 		for lab in labels:
 			ont1_label2class[lab.lower()]= base1+cl.name
 
@@ -227,22 +227,14 @@ def LexicalMatch(source, target,txt):
 	ont2_label2class = {}
 	for cl in onto2.classes():        
 		labels = cl.label
+		ont2_label2class[cl.name.lower()]= base2+cl.name
 		for lab in labels:
-				ont2_label2class[lab.lower()]= base2+cl.name
+			ont2_label2class[lab.lower()]= base2+cl.name
+
+
 	with open(txt+'_target.json','w') as f:
 		json.dump(ont2_label2class,f)
-	'''
-	ont1_label2class = {}
 
-
-	with open(txt+'_source.json','r') as f:
-		ont1_label2class = json.load(f)
-	ont2_label2class = {}
-
-	with open(txt+'_target.json','r') as f:
-		ont2_label2class = json.load(f)
-
-	'''
 	print("start lexical alignments")
 	alignments = []
 
@@ -251,13 +243,18 @@ def LexicalMatch(source, target,txt):
 
 	print("start Parallelizing lexical matxhing")
 
-	keys = ont1_label2class.keys()
-	num_core = multiprocessing.cpu_count()
-	Result = Parallel(n_jobs=4*num_core)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,96) for k in tqdm(keys) )
+	accepted_ratio = 96
 
+	while(len(alignments)<70):
 
-	for  i in range(len(keys)):
-		alignments+=Result[i]
+		keys = ont1_label2class.keys()
+		num_core = multiprocessing.cpu_count()
+		Result = Parallel(n_jobs=4*num_core)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys) )
+		for  i in range(len(keys)):
+			alignments+=Result[i]
+		print(len(alignments), "alignment found with accepted ratio", accepted_ratio)
+		accepted_ratio-=10
+
 
 
 	with open(txt+'.json','w') as f:
@@ -266,9 +263,6 @@ def LexicalMatch(source, target,txt):
 
 
 	return alignments 
-
-
-print("begin")
 
 
 # test

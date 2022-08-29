@@ -211,9 +211,9 @@ def LexicalMatch(source, target,txt):
 	ont1_label2class = {}
 	for cl in onto1.classes():        
 		labels = cl.label
-		ont1_label2class[cl.name.lower()]= base1+cl.name
+		ont1_label2class[cl.name.lower()]= cl.iri
 		for lab in labels:
-			ont1_label2class[lab.lower()]= base1+cl.name
+			ont1_label2class[lab.lower()]= cl.iri
 
 	with open(txt+'_source.json','w') as f:
 		json.dump(ont1_label2class,f)
@@ -227,9 +227,9 @@ def LexicalMatch(source, target,txt):
 	ont2_label2class = {}
 	for cl in onto2.classes():        
 		labels = cl.label
-		ont2_label2class[cl.name.lower()]= base2+cl.name
+		ont2_label2class[cl.name.lower()]= cl.iri
 		for lab in labels:
-			ont2_label2class[lab.lower()]= base2+cl.name
+			ont2_label2class[lab.lower()]= cl.iri
 
 
 	with open(txt+'_target.json','w') as f:
@@ -245,7 +245,7 @@ def LexicalMatch(source, target,txt):
 
 	accepted_ratio = 96
 
-	while(len(alignments)<70):
+	while(len(alignments)<20):
 
 		keys = ont1_label2class.keys()
 		num_core = multiprocessing.cpu_count()

@@ -245,7 +245,7 @@ def LexicalMatch(source, target,txt):
 
 	accepted_ratio = 96
 
-	while(len(alignments)<20):
+	while(len(alignments)<10):
 
 		keys = ont1_label2class.keys()
 		num_core = multiprocessing.cpu_count()

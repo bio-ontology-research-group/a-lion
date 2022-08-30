@@ -200,7 +200,7 @@ def lex_ma_from_dic(lab,k,dic,r):
 
 
 #takes 2 ontologies, return the lexical matching pairs of alignments
-def LexicalMatch(source, target,txt):
+def LexicalMatch(source, target, txt):
 
 	print("load ontology 1")
 	onto1 = get_ontology(source)
@@ -249,7 +249,7 @@ def LexicalMatch(source, target,txt):
 
 		keys = ont1_label2class.keys()
 		num_core = multiprocessing.cpu_count()
-		Result = Parallel(n_jobs=4*num_core)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys) )
+		Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys) )
 		for  i in range(len(keys)):
 			alignments+=Result[i]
 		print(len(alignments), "alignment found with accepted ratio", accepted_ratio)

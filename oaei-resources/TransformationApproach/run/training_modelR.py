@@ -18,9 +18,26 @@ from OntoL import Onto2KG , LexicalMatch
 import yaml
 #print(tf.version)
 
+DEFAULT_PARAMS_FILE = "config_train.yaml"
 
-def get_embeddings(params, source_owl=None, target_owl=None):
 
+params = {
+    "embedding_size": 128,
+    "model_path": "model_file",
+    "data_path": "data_file",
+    "epochs": 2,
+    "batch_k": 64,
+    "batch_a": 16,
+    "a1": 1,
+    "L1": 1,
+    "lr": 0.01,
+    "margin": 1,
+    "AM_folds": 10,
+}
+
+def train_model(source_owl, target_owl):
+
+    ####### Params accessing ###########
     this_dim = params["embedding_size"]
     model_path = params["model_path"]
     data_path = params["data_path"]
@@ -37,16 +54,26 @@ def get_embeddings(params, source_owl=None, target_owl=None):
     lr = params["lr"]
     margin = params["margin"]
     AM_folds = params["AM_folds"]
-    
+    epochs = params["epochs"]
+    #####################################
+
+    ##### Knowledge Graph Building #####
     KG1 = Onto2KG(source_owl,"source")
     KG2 = Onto2KG(target_owl,"target")
-            
+    ####################################
+
     this_data = multiG(KG1, KG2)
+
+    lexical_alignments_file_name = "lexical_alignments"
+    if not os.path.exists(lexical_alignments_file_name+ ".json"):
+        print("Computing lexical alignments")
+        LexicalMatch(source_owl, target_owl, lexical_alignments_file_name)
+    
+    print("Loading lexical alignments from file")
+    this_data.load_align_json(lexical_alignments_file_name+ ".json")
         
-    this_data.load_align_json("alignments.json")
-    
+
     m_train = Trainer()
-    
     m_train.build(
         this_data,
         dim=this_dim,
@@ -58,7 +85,7 @@ def get_embeddings(params, source_owl=None, target_owl=None):
         multiG_save_path = data_path,
         L1=L1)
     
-    m_train.train_MTransE(epochs=100,
+    m_train.train_MTransE(epochs=epochs,
                           save_every_epoch=100,
                           lr=lr, a1=a1,
                           a2=0.5,
@@ -79,8 +106,6 @@ if __name__ == "__main__":
 
         with open(config_file, "r") as f:
             params = yaml.load(f, Loader=yaml.FullLoader)
-
-        get_embeddings(params)
 
     else:
         print("ERROR: Calling from command line requires passing config file as first argument: python training_modelR.py config.yaml")

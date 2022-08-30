@@ -51,6 +51,8 @@ public class EvaluationExample {
         List<Track> tracks = new ArrayList<>();
         tracks.add(TrackRepository.Conference.V1);
         tracks.add(TrackRepository.Anatomy.Default);
+        tracks.add(TrackRepository.Biodiv.Default);
+
 
         // Let's add all matchers to a map (key: matcher name, value: matcher instance)
         Map<String, IOntologyMatchingToolBridge> matchers = new HashMap<>();

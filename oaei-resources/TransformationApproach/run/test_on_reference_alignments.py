@@ -25,20 +25,24 @@ from testerR import Tester
 import json
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import recall_score, precision_score, f1_score
+import yaml
+
+def ranked_predicted_alignments(params = None, config_file = None):
+
+    if params is None:
+        with open(config_file, "r") as f:
+            params = yaml.load(f, Loader=yaml.FullLoader)
+
+    model_file = params["model_file"]
+    data_file = params["data_file"]
+    reference_alignment_file = params["reference_alignment_file"]
+    topk = params["topk"]
+    threshold = params["threshold"]
+    tester = Tester()
+    tester.build(save_path = model_file, data_save_path = data_file)
 
 
-model_file = sys.argv[1]
-data_file = sys.argv[2]
-reference_alignment_file  = sys.argv[3]
-topk = int(sys.argv[4])
-threshold = float(sys.argv[5])
-test_name = sys.argv[6]
-tester = Tester()
-tester.build(save_path = model_file, data_save_path = data_file)
-
-
-
-def ranked_predicted_alignments(tester,reference_alignment_file,topk,threshold):
+    
     source_entities = list(tester.multiG.KG1.ents.keys())
     terget_entities = list(tester.multiG.KG2.ents.keys())
     terget_entities_vectors = tester.vec_e[2]
@@ -82,5 +86,7 @@ def ranked_predicted_alignments(tester,reference_alignment_file,topk,threshold):
     print("f1_score", f1_score(X,Y))
 
 
+if __name__ == "__main__":
+    config_file = sys.argv[1]
 
-lst = ranked_predicted_alignments(tester,reference_alignment_file,topk,threshold)
+    lst = ranked_predicted_alignments(config_file = config_file)

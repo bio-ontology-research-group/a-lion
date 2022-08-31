@@ -10,6 +10,8 @@ import time
 
 from multiG import multiG 
 import modelR as model
+from OntoL import removeInconsistincyAlignmnets
+from testerR import Tester
 
 
 class Trainer(object):
@@ -194,16 +196,16 @@ class Trainer(object):
         
         
         if epoch <= 1:
-            print('num_KG1_batch =', num_A_batch)
-            print('num_KG2_batch =', num_B_batch)
-            print('num_AM_batch =', num_AM_batch)
+            print('num_KG1_batch =', num_A_batch, " for total triples ", self.multiG.KG1.num_triples())
+            print('num_KG2_batch =', num_B_batch, " for total triples ",self.multiG.KG2.num_triples())
+            print('num_AM_batch =', num_AM_batch, " for total alignments ",self.multiG.num_align())
         loss_KM = self.train1epoch_KM(sess, num_A_batch, num_B_batch, a2, lr, epoch)
         #keep only the last loss
         for i in range(AM_fold):
             loss_AM = self.train1epoch_AM(sess, num_AM_batch, a1, a2, lr, epoch)
         return (loss_KM, loss_AM)
 
-    def train_MTransE(self, epochs=20, save_every_epoch=10, lr=0.001, a1=0.1, a2=0.05, m1=0.5, AM_fold=1, half_loss_per_epoch=-1):
+    def train_MTransE(self, source, target, epochs=20, save_every_epoch=10, lr=0.001, a1=0.1, a2=0.05, m1=0.5, AM_fold=1, half_loss_per_epoch=-1):
         #sess = tf.Session()
         #sess.run(tf.initialize_all_variables())
         self.tf_parts._m1 = m1  
@@ -222,6 +224,21 @@ class Trainer(object):
                 print("MTransE saved in file: %s. Multi-graph saved in file: %s" % (this_save_path, self.multiG_save_path))
         this_save_path = self.tf_parts._saver.save(self.sess, self.save_path)
         print("MTransE saved in file: %s" % this_save_path)
+
+        # get alignments, train 50 epochs with inconsistincy negatives
+        tester = Tester()
+        tester.build(save_path = self.save_path, data_save_path = self.multiG_save_path)
+        predictions = tester.predicted_alignments(5 ,0.1)
+        ls = removeInconsistincyAlignmnets(source, target, predictions)
+
+        print("-------------------")
+        print(predictions)
+        print("-------------------")
+        print(ls)
+
+
+
+
         print("Done")
 
 # A safer loading is available in Tester, with parameters like batch_size and dim recorded in the corresponding Data component

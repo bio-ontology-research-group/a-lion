@@ -40,8 +40,8 @@ def get_file_from_url(location):
 def alignmentMatch(source_url, target_url):
     relation = '='
 
-    train_model(source_url, target_url)    
-    alignments = generate_alignments()
+    model_file, data_file = train_model(source_url, target_url)    
+    alignments = generate_alignments(model_file, data_file)
     
     return alignments
 

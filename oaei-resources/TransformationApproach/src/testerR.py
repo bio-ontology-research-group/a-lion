@@ -12,7 +12,7 @@ import sys
 
 import multiG  
 import modelR as model
-import trainerR as trainer
+
 
 # This class is used to load and combine a TF_Parts and a Data object, and provides some useful methods for training
 class Tester(object):
@@ -229,3 +229,26 @@ class Tester(object):
     def projection_pool(self, ht_vec):
         #return np.add(np.dot(ht_vec, self.mat), self._b)
         return np.dot(ht_vec, self.mat)
+
+    def predicted_alignments(self,topk,threshold):
+        source_entities = list(self.multiG.KG1.ents.keys())
+        terget_entities = list(self.multiG.KG2.ents.keys())
+        terget_entities_vectors = self.vec_e[2]
+
+        mappings = []
+        count=0
+        for class_ in source_entities:
+            class_url = self.multiG.KG1.ent_index2str(class_)
+            vec_proj_class = self.projection(class_, source = 1)
+            rst = self.kNN_with_names(vec_proj_class, terget_entities_vectors, topk)
+            for i in range(topk):
+                if(rst[i][1]<threshold):
+                    print(rst[i][1])
+                    tuple_ = (class_url,rst[i][0])
+                    mappings.append(tuple_)
+                else:
+                    continue
+
+
+
+        return mappings

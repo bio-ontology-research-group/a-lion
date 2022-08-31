@@ -16,7 +16,7 @@ import json
 from joblib import Parallel, delayed 
 import multiprocessing
 from tqdm import tqdm
-
+import numpy as np
 #jars_dir = "../src/gateway/build/distributions/gateway/lib/"
 #jars = str(str.join(":", [jars_dir+name for name in os.listdir(jars_dir)]))
 #startJVM(getDefaultJVMPath(), "-ea",  "-Djava.class.path=" + jars,  convertStrings=False)
@@ -25,7 +25,7 @@ import mowl
 mowl.init_jvm("10g")
 
 from org.semanticweb.owlapi.apibinding import OWLManager
-from org.semanticweb.owlapi.model import OWLOntology, OWLLiteral,IRI
+from org.semanticweb.owlapi.model import OWLOntology, OWLLiteral,IRI, AxiomType
 from org.semanticweb.owlapi.search import EntitySearcher
 from org.semanticweb.owlapi.reasoner import *
 from org.semanticweb.elk.reasoner.config import *
@@ -46,8 +46,12 @@ from org.semanticweb.owlapi.manchestersyntax.renderer import *
 from org.semanticweb.owlapi.reasoner.structural import *
 from org.apache.jena.rdf.model import *
 from org.apache.jena.util import *
-from java.util import LinkedHashSet
+from java.util import LinkedHashSet, List, ArrayList, Arrays
 from java.io import File, PrintWriter, BufferedWriter, FileWriter, FileOutputStream
+from com.clarkparsia.owlapi.explanation import BlackBoxExplanation
+from com.clarkparsia.owlapi.explanation import HSTExplanationGenerator
+
+
 
 
 def levenshtein_ratio_and_distance(s, t, ratio_calc = False):
@@ -98,171 +102,299 @@ def levenshtein_ratio_and_distance(s, t, ratio_calc = False):
 
 
 #takes an ontology, returns a KG
-def Onto2KG(ontology_file_path,temp_name):
+def Onto2KG(ontology_file_path):
 
-	#fout =  PrintWriter( BufferedWriter( FileWriter(temp_name+"_edgelist")))
-	#mpout =  PrintWriter( BufferedWriter( FileWriter(temp_name+"_predicates")))
-	#meout =  PrintWriter( BufferedWriter( FileWriter(temp_name+"_entitiies")))
-
-
-	manager = OWLManager.createOWLOntologyManager()
-	fac = manager.getOWLDataFactory()
+    #fout =  PrintWriter( BufferedWriter( FileWriter(temp_name+"_edgelist")))
+    #mpout =  PrintWriter( BufferedWriter( FileWriter(temp_name+"_predicates")))
+    #meout =  PrintWriter( BufferedWriter( FileWriter(temp_name+"_entitiies")))
 
 
-	progressMonitor = ConsoleProgressMonitor()
-	config = SimpleConfiguration(progressMonitor)
-	f = ElkReasonerFactory()
+    manager = OWLManager.createOWLOntologyManager()
+    fac = manager.getOWLDataFactory()
 
 
-	#load ontology
-	ont = manager.loadOntologyFromOntologyDocument(File(ontology_file_path))
-	reasoner = f.createReasoner(ont,config)
-
-	oset =  LinkedHashSet()
-	for ax in InferredClassAssertionAxiomGenerator().createAxioms(fac, reasoner):
-		manager.addAxiom(ont, ax)
-
-	infered_output = FileOutputStream(ontology_file_path+"_infered")
-	manager.saveOntology(ont, infered_output )
-
-	model = ModelFactory.createDefaultModel()
-	infile = FileManager.get().open( ontology_file_path+"_infered" )
-	model.read(infile,"RDF/XML")
-
-	counter_p = 0
-	counter_e = 0
-	map_p = {} 
-	map_e = {}
-	edgelist=[] 
-	for stmt in model.listStatements():
-		pred = stmt.getPredicate().toString()
-		subj = stmt.getSubject()
-		obj = stmt.getObject()
-
-		if(str(pred) == "http://www.w3.org/2000/01/rdf-schema#subClassOf"):
-
-			if (subj.isURIResource() and obj.isURIResource()):
-
-				if (pred not in map_p):
-					map_p[pred] = counter_p
-					counter_p += 1
-				if (subj.toString() not in map_e):
-					map_e[subj.toString()] = counter_e
-					counter_e += 1
-
-				if (obj.toString() not in map_e):
-					map_e[obj.toString()] = counter_e
-					counter_e += 1
-
-			
-				predid = str(map_p[pred])
-				subjid = str(map_e[subj.toString()])
-				objid = str(map_e[obj.toString()])
-			
-				edgelist.append([pred,subj.toString(),obj.toString()])
-				#edgelist.append([subjid,objid,predid])
-				#fout.println(subjid+"\t"+objid+"\t"+predid)
-
-	#for k in map_e:
-	#  meout.println(k+"\t"+str(map_e[k]))
-	
-	#for k in map_p:
-	#  mpout.println(k+"\t"+str(map_p[k]))
+    progressMonitor = ConsoleProgressMonitor()
+    config = SimpleConfiguration(progressMonitor)
+    f = ElkReasonerFactory()
 
 
-	#fout.flush()
-	#fout.close()
-	#meout.flush()
-	#meout.close()
-	#mpout.flush()
-	#mpout.close()
+    #load ontology
+    ont = manager.loadOntologyFromOntologyDocument(File(ontology_file_path))
+    reasoner = f.createReasoner(ont,config)
 
-	newKG = KG()
-	newKG.load_triples_from_dic(edgelist)
-	return newKG
+    oset =  LinkedHashSet()
+    for ax in InferredClassAssertionAxiomGenerator().createAxioms(fac, reasoner):
+        manager.addAxiom(ont, ax)
+
+    infered_output = FileOutputStream(ontology_file_path+"_infered")
+    manager.saveOntology(ont, infered_output )
+
+    model = ModelFactory.createDefaultModel()
+    infile = FileManager.get().open( ontology_file_path+"_infered" )
+    model.read(infile,"RDF/XML")
+
+    counter_p = 0
+    counter_e = 0
+    map_p = {} 
+    map_e = {}
+    edgelist=[] 
+    for stmt in model.listStatements():
+        pred = stmt.getPredicate().toString()
+        subj = stmt.getSubject()
+        obj = stmt.getObject()
+
+        if(str(pred) == "http://www.w3.org/2000/01/rdf-schema#subClassOf"):
+
+            if (subj.isURIResource() and obj.isURIResource()):
+
+                if (pred not in map_p):
+                    map_p[pred] = counter_p
+                    counter_p += 1
+                if (subj.toString() not in map_e):
+                    map_e[subj.toString()] = counter_e
+                    counter_e += 1
+                    
+                if (obj.toString() not in map_e):
+                    map_e[obj.toString()] = counter_e
+                    counter_e += 1
+
+
+                predid = str(map_p[pred])
+                subjid = str(map_e[subj.toString()])
+                objid = str(map_e[obj.toString()])
+
+                edgelist.append([pred,subj.toString(),obj.toString()])
+                #edgelist.append([subjid,objid,predid])
+                #fout.println(subjid+"\t"+objid+"\t"+predid)
+
+    #for k in map_e:
+    #  meout.println(k+"\t"+str(map_e[k]))
+
+    #for k in map_p:
+    #  mpout.println(k+"\t"+str(map_p[k]))
+
+
+    #fout.flush()
+    #fout.close()
+    #meout.flush()
+    #meout.close()
+    #mpout.flush()
+    #mpout.close()
+
+    newKG = KG()
+    newKG.load_triples_from_dic(edgelist)
+    return newKG
 
 
 
-	print("done")
+    print("done")
 #test passed
 #kg = Onto2KG("/home/alghsm0a/AgreementMakerDeep-main/conf/oaei-resources/source.owl", "test")
 #print(kg)
 
 
 def lex_ma_from_dic(lab,k,dic,r):
-	ls = []
-	for l in dic:
-		ratio = fuzz.ratio(lab,l)
-		if(ratio>r):
-			ls.append([k,dic[l]])
+    ls = []
+    for l in dic:
+        ratio = fuzz.ratio(lab,l)
+        if(ratio>r):
+            print(k, dic[l])
+            ls.append([k,dic[l]])
 			#print(lab,l,ratio)
-	return(ls)
+    return(ls)
 
 
 #takes 2 ontologies, return the lexical matching pairs of alignments
 def LexicalMatch(source, target, txt):
 
-	print("load ontology 1")
-	onto1 = get_ontology(source)
-	onto1.load()
+    print("load ontology 1")
+    onto1 = get_ontology(source)
+    onto1.load()
 
-	base1 = onto1.base_iri
-	print("parse labels for ontology 1")
-	ont1_label2class = {}
-	for cl in onto1.classes():        
-		labels = cl.label
-		ont1_label2class[cl.name.lower()]= cl.iri
-		for lab in labels:
-			ont1_label2class[lab.lower()]= cl.iri
+    base1 = onto1.base_iri
+    print("parse labels for ontology 1")
+    ont1_label2class = {}
+    for cl in onto1.classes():        
+        labels = cl.label
+        ont1_label2class[cl.name.lower()]= cl.iri
+        for lab in labels:
+            ont1_label2class[lab.lower()]= cl.iri
 
-	with open(txt+'_source.json','w') as f:
-		json.dump(ont1_label2class,f)
+    with open(txt+'_source.json','w') as f:
+        json.dump(ont1_label2class,f)
 
-	print("load ontology 2")
-	onto2 = get_ontology(target)
-	onto2.load()
+    print("load ontology 2")
+    onto2 = get_ontology(target)
+    onto2.load()
 
-	base2 = onto2.base_iri
-	print("parse labels for ontology 2")
-	ont2_label2class = {}
-	for cl in onto2.classes():        
-		labels = cl.label
-		ont2_label2class[cl.name.lower()]= cl.iri
-		for lab in labels:
-			ont2_label2class[lab.lower()]= cl.iri
-
-
-	with open(txt+'_target.json','w') as f:
-		json.dump(ont2_label2class,f)
-
-	print("start lexical alignments")
-	alignments = []
-
-	
+    base2 = onto2.base_iri
+    print("parse labels for ontology 2")
+    ont2_label2class = {}
+    for cl in onto2.classes():        
+        labels = cl.label
+        ont2_label2class[cl.name.lower()]= cl.iri
+        for lab in labels:
+            ont2_label2class[lab.lower()]= cl.iri
 
 
-	print("start Parallelizing lexical matxhing")
+    with open(txt+'_target.json','w') as f:
+        json.dump(ont2_label2class,f)
 
-	accepted_ratio = 96
+    print("start lexical alignments")
+    alignments = []
+    print("start Parallelizing lexical matching")
 
-	while(len(alignments)<10):
+    accepted_ratio = 96
+    ont1_cls = [c for c in onto1.classes()]
+    ont2_cls = [c for c in onto2.classes()]
+    min_entities = min(len(ont1_cls), len(ont2_cls))
 
-		keys = ont1_label2class.keys()
-		num_core = multiprocessing.cpu_count()
-		Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys) )
-		for  i in range(len(keys)):
-			alignments+=Result[i]
-		print(len(alignments), "alignment found with accepted ratio", accepted_ratio)
-		accepted_ratio-=10
+    min_entities = 10
+    while(len(alignments) <= min_entities and accepted_ratio>60):
 
-
-
-	with open(txt+'.json','w') as f:
-		json.dump(alignments,f)
+        keys = ont1_label2class.keys()
+        num_core = multiprocessing.cpu_count()
+        Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys) )
+        for  i in range(len(keys)):
+            alignments+=Result[i]
+        print(len(alignments), "alignment found with accepted ratio", accepted_ratio)
+        accepted_ratio-=10
 
 
 
-	return alignments 
+    #with open(txt+'.json','w') as f:
+    #    json.dump(alignments,f)
+
+
+
+    return alignments 
+
+
+
+
+
+def removeInconsistincyAlignmnets(source, target, predicted_alignment):
+    #load ontologies
+    manager = OWLManager.createOWLOntologyManager()
+    fac = manager.getOWLDataFactory()
+
+
+    progressMonitor = ConsoleProgressMonitor()
+    config = SimpleConfiguration(progressMonitor)
+    f = ElkReasonerFactory()
+    onts = ArrayList()
+    onts.add(manager.loadOntologyFromOntologyDocument(File(source)))
+    onts.add(manager.loadOntologyFromOntologyDocument(File(target)))
+
+    #merge ontologuies
+    mperged = IRI.create("http://ontology_url/")
+    mergedOnt = manager.createOntology(mperged,LinkedHashSet(onts))
+    #add alignment as equivilant classes
+    try:
+        reasoner = f.createReasoner(mergedOnt,config)
+        reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY)
+    except:
+        print("Error,,, Ontologies are not EL consistent, can't apply INS ")
+        return []
+    added = []
+    not_added = []
+    added_equiv = []
+    not_added_equiv = []
+    #problematic_axioms_score={}
+    for align in predicted_alignment:
+        iri1 = fac.getOWLClass(IRI.create(align[0]))
+        iri2 = fac.getOWLClass(IRI.create(align[1]))
+        eq = ArrayList()
+        eq.add(iri1)
+        eq.add(iri2)
+        equiv_axiom = fac.getOWLEquivalentClassesAxiom(LinkedHashSet(eq))
+        try:
+            manager.addAxiom(mergedOnt, equiv_axiom)
+            reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY)
+            added.append(align)
+            added_equiv.append(equiv_axiom)
+        except:
+            print("OPSS")
+            score = 0 
+            might_be_removed_equiv = []
+            might_be_removed = []
+            print("problem in reasoning")
+            for i in range(len(added_equiv)):
+                manager.removeAxiom(mergedOnt, added_equiv[i])
+            try:
+                reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY)
+                for i in range(len(added)):
+                    try:
+                        manager.addAxiom(mergedOnt, added_equiv[i])
+                        reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY)
+                    except:
+                        score +=1
+                        #if(added[i] not in problematic_axioms_score):
+                        #	problematic_axioms_score[added[i]]=0
+                        #problematic_axioms_score[added[i]]+=1
+                        manager.removeAxiom(mergedOnt, added_equiv[i])
+                        might_be_removed_equiv.append([added_equiv[i]])
+                        might_be_removed.append([added[i]])
+
+                if(score>1):
+                    not_added.append(align)
+                    not_added_equiv.append(equiv)
+                    manager.removeAxiom(mergedOnt,equiv)
+                    for readd in might_be_removed_equiv:
+                        manager.addAxiom(mergedOnt, readd)
+                else:
+                    manager.removeAxiom(mergedOnt,might_be_removed_equiv[0])
+                    added.remove(might_be_removed[0])
+                    added_equiv.remove(might_be_removed_equiv[0])
+                    not_added.append(might_be_removed[0])
+                    not_added_equiv.append(might_be_removed_equiv[0])
+
+
+            except:
+                print("problematic in its own")
+                #if(align not in problematic_axioms_score):
+                #	problematic_axioms_score[added[i]]=0
+                #problematic_axioms_score[align]+=1
+                manager.removeAxiom(mergedOnt, equiv_axiom)
+                not_added.append(align)
+                not_added_equiv.append(equiv_axiom)
+
+
+    print("added", len(added), "from", len(predicted_alignment))
+    print("not added", len(not_added))
+
+    inc_negatives = []
+    for a in not_added:
+            inc_negatives.append(a)
+
+
+    unsatisfaiable_classes =  ArrayList()
+    for cl in mergedOnt.getClassesInSignature(True):
+            if(not reasoner.isSatisfiable(cl)):
+                    unsatisfaiable_classes.add(cl)
+    print("number of unsatisfaiable classes",unsatisfaiable_classes.size() )
+
+
+    exp = BlackBoxExplanation(mergedOnt, f, reasoner)
+    multExplanator = HSTExplanationGenerator(exp)
+
+    if(unsatisfaiable_classes.size()>0):
+        for cl in unsatisfaiable_classes:
+            print("##############class to explain", cl.toString())
+            explanation = multExplanator.getExplanation(cl)
+            print(explanation.toString())
+            for axiom in explanation:
+                print("--------------guilty axiom--------------")
+                if(axiom.isOfType(AxiomType.EQUIVALENT_CLASSES)):
+                    print(axiom.toString())
+                    classes = axiom.getNamedClasses()
+                    align = [classes[0].toString(),classes[1].toString()]
+                    if (align in added):
+                        inc_negatives.append(align)
+
+
+    return inc_negatives
+
 
 
 # test

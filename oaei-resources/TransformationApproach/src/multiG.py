@@ -42,7 +42,8 @@ class multiG(object):
         self.desc_dim = 64#stored for TF_Part
 
 
-    def load_align_json(self, json_file ):
+    
+    def load_align_json(self, json_file):
         '''Load the dataset.'''
         ls = []
         with open(json_file,'r') as f:

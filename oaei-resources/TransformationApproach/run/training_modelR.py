@@ -16,8 +16,49 @@ import modelR as model
 from trainerR import Trainer
 from OntoL import Onto2KG , LexicalMatch
 import yaml
-from test_on_reference_alignments import ranked_predicted_alignments
+from sklearn.metrics import recall_score, precision_score, f1_score
+
+from testerR import Tester
 #print(tf.version)
+from tqdm import tqdm
+
+def ranked_predicted_alignments(model_file, data_file, reference_alignment_file):
+
+    pred_alignments = generate_alignments(model_file, data_file)
+
+    mappings_index = {}
+
+    for al in pred_alignments:
+        tuple_ = (al[0], al[1])
+        
+        mappings_index[tuple_] = [0,1]
+
+
+    with open(reference_alignment_file) as f:
+        content = f.readlines()
+
+    for p in content:
+        line = p.split()
+        tuple_ = (line[0], line[1])
+        if(tuple_ not in mappings_index):
+            mappings_index[tuple_] = [1,0]
+            
+        else:
+            mappings_index[tuple_][0] = 1
+
+    X = []
+    Y = []
+    for k in mappings_index:
+        X.append(mappings_index[k][1])
+        Y.append(mappings_index[k][0])
+
+    print("recal",recall_score(X,Y) )
+    print("precision", precision_score(X,Y))
+    print("f1_score", f1_score(X,Y))
+
+
+
+
 
 params = {
     "embedding_size": 128,
@@ -29,7 +70,59 @@ params = {
     "lr": 0.01,
     "margin": 1,
     "AM_folds": 20,
+    "topk": 10,
+    "threshold": 0.1,
+
 }
+
+
+
+def generate_alignments(model_file, data_file):
+    #model_file = params["model_path"]
+    #data_file = params["data_path"]
+    topk = params["topk"]
+    threshold = params["threshold"]
+    tester = Tester()
+    tester.build(save_path = model_file, data_save_path = data_file)
+
+
+    
+    source_entities = list(tester.multiG.KG1.ents.keys())
+    target_entities = list(tester.multiG.KG2.ents.keys())
+
+    min_entities = 200 #len(source_entities)//2 #min(len(source_entities), len(target_entities))
+    
+    target_entities_vectors = tester.vec_e[2]
+        
+    alignments = []
+
+    acceptable_alignments = False
+
+    
+    while not acceptable_alignments:
+        for class_ in tqdm(source_entities, total = len(source_entities)):
+            class_url = tester.multiG.KG1.ent_index2str(class_)
+            vec_proj_class = tester.projection(class_, source = 1)
+            rst = tester.kNN_with_names(vec_proj_class, target_entities_vectors, topk)
+            for i in range(topk):
+                if(rst[i][1]<threshold):
+                    if class_ in source_entities:
+                        source_entities.remove(class_)
+
+                    print(class_url, rst[i][0], rst[i][1])
+                    alignments.append([class_url, rst[i][0], "=", 1.0])
+
+        if (len(alignments) >= min_entities) or threshold > 1.0 :
+            acceptable_alignments = True
+        else:
+            print(f"Not enough alignments, trying higher threshold. Num of aligns: {len(alignments)}. Min entities: {min_entities}")
+            
+            threshold += 0.1
+            print(f"")
+    
+    #shutil.rmtree("data/")
+    return alignments
+
 
 def train_model(source_owl, target_owl):
 

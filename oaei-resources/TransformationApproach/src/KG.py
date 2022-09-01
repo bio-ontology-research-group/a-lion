@@ -1,3 +1,5 @@
+# This code is a modification of MTransE method to enable learning alignment based on different relations on ontologies 
+#----------------------------------------------------
 """Processing of data."""
 
 from __future__ import absolute_import

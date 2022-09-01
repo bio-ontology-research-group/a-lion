@@ -14,7 +14,7 @@ from KG import KG
 from multiG import multiG   # we don't import individual things in a model. This is to make auto reloading in Notebook happy
 import modelR as model
 from trainerR import Trainer
-from OntoL import Onto2KG , LexicalMatch
+from OntoL import Onto2KG , LexicalMatch, removeInconsistincyAlignmnets
 import yaml
 from sklearn.metrics import recall_score, precision_score, f1_score
 
@@ -84,13 +84,11 @@ def generate_alignments(model_file, data_file):
     threshold = params["threshold"]
     tester = Tester()
     tester.build(save_path = model_file, data_save_path = data_file)
-
-
     
     source_entities = list(tester.multiG.KG1.ents.keys())
     target_entities = list(tester.multiG.KG2.ents.keys())
 
-    min_entities = 200 #len(source_entities)//2 #min(len(source_entities), len(target_entities))
+    min_entities = min(len(source_entities), len(target_entities))//2
     
     target_entities_vectors = tester.vec_e[2]
         
@@ -119,6 +117,18 @@ def generate_alignments(model_file, data_file):
             
             threshold += 0.1
             print(f"")
+
+
+    tester = Tester()
+    tester.build(save_path = self.save_path, data_save_path = self.multiG_save_path)
+    predictions = tester.predicted_alignments(5 ,0.1)
+    ls = removeInconsistincyAlignmnets(source, target, predictions)
+
+    print("-------------------")
+    print("Predictions found: {len(predictions)}")
+    print("-------------------")
+    print("Inconsistencies found: {len(ls)}")
+
     
     #shutil.rmtree("data/")
     return alignments

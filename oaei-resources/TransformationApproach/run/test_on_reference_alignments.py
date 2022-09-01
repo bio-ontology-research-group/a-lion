@@ -62,6 +62,7 @@ def ranked_predicted_alignments(model_file, data_file, reference_alignment_file)
     print("precision", precision_score(X,Y))
     print("f1_score", f1_score(X,Y))
 
+    
 
 if __name__ == "__main__":
     config_file = sys.argv[1]

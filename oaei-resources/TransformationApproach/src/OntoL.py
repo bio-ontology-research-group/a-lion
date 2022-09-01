@@ -247,9 +247,9 @@ def LexicalMatch(source, target, txt):
     accepted_ratio = 96
     ont1_cls = [c for c in onto1.classes()]
     ont2_cls = [c for c in onto2.classes()]
-    min_entities = min(len(ont1_cls), len(ont2_cls))
+    min_entities = min(len(ont1_cls), len(ont2_cls))//2
 
-    min_entities = 10
+    #min_entities = 10
     while(len(alignments) <= min_entities and accepted_ratio>60):
 
         keys = ont1_label2class.keys()

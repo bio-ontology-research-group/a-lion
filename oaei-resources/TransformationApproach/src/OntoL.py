@@ -207,41 +207,85 @@ def lex_ma_from_dic(lab,k,dic,r):
 #takes 2 ontologies, return the lexical matching pairs of alignments
 def LexicalMatch(source, target, txt):
 
-    print("load ontology 1")
-    onto1 = get_ontology(source)
-    onto1.load()
+	ont1_label2class = {}
+	ont2_label2class = {}
+	print("load ontology 1")
 
-    base1 = onto1.base_iri
-    print("parse labels for ontology 1")
-    ont1_label2class = {}
-    for cl in onto1.classes():        
-        labels = cl.label
-        ont1_label2class[cl.name.lower()]= cl.iri
-        for lab in labels:
-            ont1_label2class[lab.lower()]= cl.iri
+	try:
+		onto1 = get_ontology(source+"_infered")
+		onto1.load()
 
-    with open(txt+'_source.json','w') as f:
-        json.dump(ont1_label2class,f)
+		base1 = onto1.base_iri
+		print("parse labels for ontology 1")
+		for cl in onto1.classes():		
+			labels = cl.label
+			ont1_label2class[cl.name.lower()]= cl.iri
+			for lab in labels:
+				ont1_label2class[lab.lower()]= cl.iri
+	except:
+		print("owlready fails to parse source ontology, trying owlapi ... ")
 
-    print("load ontology 2")
-    onto2 = get_ontology(target)
-    onto2.load()
+	manager = OWLManager.createOWLOntologyManager()
+	fac = manager.getOWLDataFactory()
+	ont1 = manager.loadOntologyFromOntologyDocument(File(source))
+	for cl in ont1.getClassesInSignature(True):
+		class_iri = str(cl.toString().replace("<","").replace(">",""))
+		id_index_start = max(class_iri.find("/"),class_iri.find("#"))
+		class_id = class_iri[id_index_start:]
+		ont1_label2class[class_id.lower()]= class_iri
+		for lab in EntitySearcher.getAnnotationObjects(cl, ont1, fac.getRDFSLabel()):
+			print(lab.getValue())
+			if (lab.getValue().isOfType(OWLLiteral)):
+				labs = lab.getValue().getLiteral()
+				print("label in get litral", labs )
+				ont1_label2class[labs.lower()]= class_iri
+			if ("http://www.w3.org/2004/02/skos/core#prefLabel" in lab.getProperty().toString()):
+				labs = lab.getValue().getLiteral()
+				print("label in prefLabel", labs )
+				ont1_label2class[labs.lower()]= class_iri
 
-    base2 = onto2.base_iri
-    print("parse labels for ontology 2")
-    ont2_label2class = {}
-    for cl in onto2.classes():        
-        labels = cl.label
-        ont2_label2class[cl.name.lower()]= cl.iri
-        for lab in labels:
-            ont2_label2class[lab.lower()]= cl.iri
+	if(len(ont1_label2class.keys())>5):
+		print("not enuogh labels in the source ontology")
+	with open(txt+'_source.json','w') as f:
+		json.dump(ont1_label2class,f)
+	try:
+		print("load ontology 2")
+		onto2 = get_ontology(target+"_infered")
+		onto2.load()
 
+		base2 = onto2.base_iri
+		print("parse labels for ontology 2")
+		for cl in onto2.classes():		
+			labels = cl.label
+			ont2_label2class[cl.name.lower()]= cl.iri
+			for lab in labels:
+				ont2_label2class[lab.lower()]= cl.iri
+	except:
+		print("owlready fails to parse target ontology, trying owlapi ... ")
+	ont2 = manager.loadOntologyFromOntologyDocument(File(target))
+	for cl in ont2.getClassesInSignature(True):
+		class_iri = str(cl.toString().replace("<","").replace(">",""))
+		id_index_start = max(class_iri.find("/"),class_iri.find("#"))
+		class_id = class_iri[id_index_start:]
+		ont2_label2class[class_id.lower()]= class_iri
+		for lab in EntitySearcher.getAnnotationObjects(cl, ont2, fac.getRDFSLabel()):
+			print(lab.getValue())
+			if (lab.getValue().isOfType(OWLLiteral)):
+				labs = lab.getValue().getLiteral()
+				print("label in get litral", labs )
+				ont2_label2class[labs.lower()]= class_iri
+			if ("http://www.w3.org/2004/02/skos/core#prefLabel" in lab.getProperty().toString()):
+				labs = lab.getValue().getLiteral()
+				print("label in prefLabel", labs )
+				ont2_label2class[labs.lower()]= class_iri
 
-    with open(txt+'_target.json','w') as f:
-        json.dump(ont2_label2class,f)
+	if(len(ont2_label2class.keys())>5):
+				print("not enuogh labels in the target ontology")
+	with open(txt+'_target.json','w') as f:
+		json.dump(ont2_label2class,f)
 
-    print("start lexical alignments")
-    alignments = []
+	print("start lexical alignments")
+	alignments = []
     print("start Parallelizing lexical matching")
 
     accepted_ratio = 96

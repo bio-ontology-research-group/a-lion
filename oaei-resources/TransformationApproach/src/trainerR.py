@@ -295,12 +295,12 @@ class Trainer(object):
         tester = Tester()
         tester.build(save_path = self.save_path, data_save_path = self.multiG_save_path)
         predictions = tester.predicted_alignments(5 ,0.1)
-        ls = removeInconsistincyAlignmnets(source, target, predictions)
+        inc = removeInconsistincyAlignmnets(source, target, predictions)
 
         print("-------------------")
         print(predictions)
         print("-------------------")
-        print(ls)
+        print(inc)
 
         if(len(inc)<1):
             print("inconsistincy negatives don't exixst")

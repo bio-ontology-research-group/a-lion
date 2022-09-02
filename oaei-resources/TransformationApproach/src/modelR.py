@@ -289,24 +289,34 @@ class TFParts(object):
             AM_ent2_nbatch = tf.nn.l2_normalize(tf.nn.embedding_lookup(ht2, AM_nindex2), 1)
 
             AM_loss_matrix = tf.subtract( tf.matmul(AM_ent1_batch, M), AM_ent2_batch)
+            AM_inc_loss_matrix = tf.subtract( tf.subtract( tf.matmul(AM_ent1_batch, M), AM_ent2_batch) ,
+                                tf.subtract( tf.matmul(AM_ent1_nbatch, M), AM_ent2_nbatch) )
 
             if self.L1:
                 self._AM_loss = AM_loss = tf.reduce_sum(
                 tf.reduce_sum(tf.abs(AM_loss_matrix),1)
                 ) / self._batch_sizeA
+
+                self._AM_inc_loss = AM_inc_loss = tf.reduce_sum(
+                tf.reduce_sum(tf.abs(AM_inc_loss_matrix),1)
+                ) / self._batch_sizeA
+
             else:
                 self._AM_loss = AM_loss = tf.reduce_sum(
                 tf.sqrt(tf.reduce_sum(tf.square(AM_loss_matrix), 1)
                 )
                 ) / self._batch_sizeA
 
-            
+                self._AM_inc_loss = AM_inc_loss = tf.reduce_sum(
+                tf.sqrt(tf.reduce_sum(tf.square(AM_loss_matrix), 1)
+                )
+                ) / self._batch_sizeA
+
+
             # Optimizer
             self._lr = lr = tf.placeholder(tf.float32)
             self._opt = opt = tf.train.AdamOptimizer(lr)#AdagradOptimizer(lr)#GradientDescentOptimizer(lr)
             self._train_op_A = train_op_A = opt.minimize(A_loss)
             self._train_op_B = train_op_B = opt.minimize(B_loss)
             self._train_op_AM = train_op_AM = opt.minimize(AM_loss)
-
-            # Saver
-            self._saver = tf.train.Saver()
+            self._train_op_AM_inc = train_op_AM_inc = opt.minimize(AM_inc_loss)

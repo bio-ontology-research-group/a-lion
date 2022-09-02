@@ -90,7 +90,40 @@ class Trainer(object):
                 yield e1_batch.astype(np.int64), e2_batch.astype(np.int64), e1_nbatch.astype(np.int64), e2_nbatch.astype(np.int64)
             if not forever:
                 break
-    
+    def gen_AM_batch_inc(self, forever=False, shuffle=True, inc=[]):
+        multiG = self.multiG
+        l = len(multiG.align)
+        while True:
+            align = multiG.align
+            if shuffle:
+                np.random.shuffle(align)
+            for i in range(0, l, self.batch_sizeA):
+                batch = align[i: i+self.batch_sizeA, :]
+                if batch.shape[0] < self.batch_sizeA:
+                    batch = np.concatenate((batch, align[:self.batch_sizeA - batch.shape[0]]), axis=0)
+                    assert batch.shape[0] == self.batch_sizeA
+                if(inc):
+                    inc_alin = []
+                    for negative in inc:
+                        e1 = multiG.KG1.ent_str2index(negative[0])
+                        e2 = multiG.KG2.ent_str2index(negative[1])
+                        if e1 == None or e2 == None:
+                            continue
+                        inc_alin.append(e1, e2)
+                    if(len(inc_alin)>0):
+                        while len(inc_alin)<len(align):
+                            inc_alin*=2
+                    n_batch = inc_alin[i: i+self.batch_sizeA, :]
+                    if n_batch.shape[0] < self.batch_sizeA:
+                        n_batch = np.concatenate((n_batch, inc_alin[:self.batch_sizeA - n_batch.shape[0]]), axis=0)
+                    #n_batch = multiG.corrupt_align_batch(batch)
+                else:
+                    n_batch = multiG.corrupt_align_batch(batch)
+                e1_batch, e2_batch, e1_nbatch, e2_nbatch = batch[:, 0], batch[:, 1], n_batch[:, 0], n_batch[:, 1]
+                yield e1_batch.astype(np.int64), e2_batch.astype(np.int64), e1_nbatch.astype(np.int64), e2_nbatch.astype(np.int64)
+            if not forever:
+                break
+                              
     def gen_AM_batch_non_neg(self, forever=False, shuffle=True):
         multiG = self.multiG
         l = len(multiG.align)
@@ -189,8 +222,39 @@ class Trainer(object):
         print("AM Loss of epoch", epoch, ":", this_total_loss)
         print([l for l in this_loss])
         return this_total_loss
+    
+    def train1epoch_AM_with_negatives(self, sess, num_AM_batch, a1, a2, lr, epoch, inc):
 
-    def train1epoch_associative(self, sess, lr, a1, a2, epoch, AM_fold = 1):
+        #this_gen_AM_batch = self.gen_AM_batch(forever=True)
+        this_gen_AM_batch = self.gen_AM_batch_inc(forever=True, inc=inc)
+
+        this_loss = []
+
+        AM_inc_loss = 0
+
+        for batch_id in range(num_AM_batch):
+            # Optimize loss A
+            e1_index, e2_index  = next(this_gen_AM_batch)
+            _, AM_inc_loss = sess.run([self.tf_parts._train_op_AM_inc, self.tf_parts._AM_inc_loss],
+                    feed_dict={self.tf_parts._AM_index1: e1_index,
+                               self.tf_parts._AM_index2: e2_index,
+                               self.tf_parts._AM_nindex1: e1_nindex,
+                               self.tf_parts._AM_nindex2: e2_nindex,
+                               self.tf_parts._lr: lr * a1})
+            # Observe total loss
+            batch_loss = [AM_inc_loss]
+            if len(this_loss) == 0:
+                this_loss = np.array(batch_loss)
+            else:
+                this_loss += np.array(batch_loss)
+            if ((batch_id + 1) % 50 == 0) or batch_id == num_AM_batch - 1:
+                print('\rprocess: %d / %d. Epoch %d' % (batch_id+1, num_AM_batch+1, epoch))
+        this_total_loss = np.sum(this_loss)
+        print("AM inc Loss of epoch", epoch, ":", this_total_loss)
+        print([l for l in this_loss])
+        return this_total_loss
+    
+    def train1epoch_associative(self, sess, lr, a1, a2, epoch, AM_fold = 1,inc=[]):
        
         num_A_batch = int(self.multiG.KG1.num_triples() / self.batch_sizeK)
         num_B_batch = int(self.multiG.KG2.num_triples() / self.batch_sizeK)
@@ -229,6 +293,34 @@ class Trainer(object):
 
         # get alignments, train 50 epochs with inconsistincy negatives
         tester = Tester()
+
+        tester.build(save_path = self.save_path, data_save_path = self.multiG_save_path)
+        predictions = tester.predicted_alignments(5 ,0.1)
+        inc = removeInconsistincyAlignmnets(source, target, predictions)
+
+        print("-------------------")
+        print(predictions)
+        print("-------------------")
+        print(inc)
+
+        if(len(inc)<1):
+            print("inconsistincy negatives don't exixst")
+        else:
+            print("found ",len(inc) , "inconsistincy negatives, trainiing resume .. ")
+            for epoch in range(10):
+                epoch_lossKM, epoch_lossAM = self.train1epoch_associative(self.sess, 0.001 , a1, a2, epoch, 1, inc)
+                print("Time use: %d" % (time.time() - t0))
+                if np.isnan(epoch_lossKM) or np.isnan(epoch_lossAM):
+                    print("Training collapsed.")
+                    return
+                if (epoch + 1) % save_every_epoch == 0:
+                    this_save_path = self.tf_parts._saver.save(self.sess, self.save_path)
+                    self.multiG.save(self.multiG_save_path)
+                    print("MTransE saved in file: %s. Multi-graph saved in file: %s" % (this_save_path, self.multiG_save_path))
+            this_save_path = self.tf_parts._saver.save(self.sess, self.save_path)
+            print("MTransE with INC saved in file: %s" % this_save_path)
+
+
 
         print("Done")
 

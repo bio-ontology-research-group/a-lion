@@ -98,7 +98,7 @@ def generate_alignments(model_file, data_file):
 
     
     while not acceptable_alignments:
-        for class_ in tqdm(source_entities, total = len(source_entities)):
+        for class_ in source_entities:#tqdm(source_entities, total = len(source_entities)):
             class_url = tester.multiG.KG1.ent_index2str(class_)
             vec_proj_class = tester.projection(class_, source = 1)
             rst = tester.kNN_with_names(vec_proj_class, target_entities_vectors, topk)

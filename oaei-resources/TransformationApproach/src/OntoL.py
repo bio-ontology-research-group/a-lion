@@ -299,7 +299,7 @@ def LexicalMatch(source, target, txt):
 
         keys = ont1_label2class.keys()
         num_core = multiprocessing.cpu_count()
-        Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys) )
+        Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in keys )
         for  i in range(len(keys)):
             alignments+=Result[i]
             

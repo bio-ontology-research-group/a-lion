@@ -302,7 +302,7 @@ class Trainer(object):
         print("-------------------")
         print(inc)
 
-        if(len(inc)<1):
+        if(len(inc)>1):
             print("inconsistincy negatives don't exixst")
         else:
             print("found ",len(inc) , "inconsistincy negatives, trainiing resume .. ")

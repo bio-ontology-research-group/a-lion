@@ -198,7 +198,7 @@ def lex_ma_from_dic(lab,k,dic,r):
     for l in dic:
         ratio = fuzz.ratio(lab,l)
         if(ratio>r):
-            print(k, dic[l])
+            #print(k, dic[l])
             ls.append([k,dic[l]])
 			#print(lab,l,ratio)
     return(ls)
@@ -207,85 +207,85 @@ def lex_ma_from_dic(lab,k,dic,r):
 #takes 2 ontologies, return the lexical matching pairs of alignments
 def LexicalMatch(source, target, txt):
 
-	ont1_label2class = {}
-	ont2_label2class = {}
-	print("load ontology 1")
+    ont1_label2class = {}
+    ont2_label2class = {}
+    print("load ontology 1")
 
-	try:
-		onto1 = get_ontology(source+"_infered")
-		onto1.load()
+    try:
+        onto1 = get_ontology(source+"_infered")
+        onto1.load()
+        
+        base1 = onto1.base_iri
+        print("parse labels for ontology 1")
+        for cl in onto1.classes():		
+            labels = cl.label
+            ont1_label2class[cl.name.lower()]= cl.iri
+            for lab in labels:
+                ont1_label2class[lab.lower()]= cl.iri
+    except:
+        print("owlready fails to parse source ontology, trying owlapi ... ")
 
-		base1 = onto1.base_iri
-		print("parse labels for ontology 1")
-		for cl in onto1.classes():		
-			labels = cl.label
-			ont1_label2class[cl.name.lower()]= cl.iri
-			for lab in labels:
-				ont1_label2class[lab.lower()]= cl.iri
-	except:
-		print("owlready fails to parse source ontology, trying owlapi ... ")
+    manager = OWLManager.createOWLOntologyManager()
+    fac = manager.getOWLDataFactory()
+    ont1 = manager.loadOntologyFromOntologyDocument(File(source))
+    for cl in ont1.getClassesInSignature(True):
+        class_iri = str(cl.toString().replace("<","").replace(">",""))
+        id_index_start = max(class_iri.find("/"),class_iri.find("#"))
+        class_id = class_iri[id_index_start:]
+        ont1_label2class[class_id.lower()]= class_iri
+        for lab in EntitySearcher.getAnnotationObjects(cl, ont1, fac.getRDFSLabel()):
+            #print(lab.getValue())
+            if (lab.getValue().isLiteral()): #isOfType(OWLLiteral)
+                labs = lab.getValue().getLiteral()
+                #print("label in get litral", labs )
+                ont1_label2class[str(labs).lower()]= class_iri
+            if ("http://www.w3.org/2004/02/skos/core#prefLabel" in lab.getProperty().toString()):
+                labs = lab.getValue().getLiteral()
+                #print("label in prefLabel", labs )
+                ont1_label2class[str(labs.lower())]= class_iri
 
-	manager = OWLManager.createOWLOntologyManager()
-	fac = manager.getOWLDataFactory()
-	ont1 = manager.loadOntologyFromOntologyDocument(File(source))
-	for cl in ont1.getClassesInSignature(True):
-		class_iri = str(cl.toString().replace("<","").replace(">",""))
-		id_index_start = max(class_iri.find("/"),class_iri.find("#"))
-		class_id = class_iri[id_index_start:]
-		ont1_label2class[class_id.lower()]= class_iri
-		for lab in EntitySearcher.getAnnotationObjects(cl, ont1, fac.getRDFSLabel()):
-			print(lab.getValue())
-			if (lab.getValue().isOfType(OWLLiteral)):
-				labs = lab.getValue().getLiteral()
-				print("label in get litral", labs )
-				ont1_label2class[labs.lower()]= class_iri
-			if ("http://www.w3.org/2004/02/skos/core#prefLabel" in lab.getProperty().toString()):
-				labs = lab.getValue().getLiteral()
-				print("label in prefLabel", labs )
-				ont1_label2class[labs.lower()]= class_iri
+    if(len(ont1_label2class.keys())>5):
+            print("not enuogh labels in the source ontology")
+    with open(txt+'_source.json','w') as f:
+            json.dump(ont1_label2class,f)
+    try:
+        print("load ontology 2")
+        onto2 = get_ontology(target+"_infered")
+        onto2.load()
 
-	if(len(ont1_label2class.keys())>5):
-		print("not enuogh labels in the source ontology")
-	with open(txt+'_source.json','w') as f:
-		json.dump(ont1_label2class,f)
-	try:
-		print("load ontology 2")
-		onto2 = get_ontology(target+"_infered")
-		onto2.load()
+        base2 = onto2.base_iri
+        print("parse labels for ontology 2")
+        for cl in onto2.classes():		
+            labels = cl.label
+            ont2_label2class[cl.name.lower()]= cl.iri
+            for lab in labels:
+                ont2_label2class[lab.lower()]= cl.iri
+    except:
+        print("owlready fails to parse target ontology, trying owlapi ... ")
+    ont2 = manager.loadOntologyFromOntologyDocument(File(target))
+    for cl in ont2.getClassesInSignature(True):
+        class_iri = str(cl.toString().replace("<","").replace(">",""))
+        id_index_start = max(class_iri.find("/"),class_iri.find("#"))
+        class_id = class_iri[id_index_start:]
+        ont2_label2class[class_id.lower()]= class_iri
+        for lab in EntitySearcher.getAnnotationObjects(cl, ont2, fac.getRDFSLabel()):
+            #print(lab.getValue())
+            if (lab.getValue().isLiteral()): #isOfType(OWLLiteral)
+                labs = lab.getValue().getLiteral()
+                #print("label in get litral", labs )
+                ont2_label2class[str(labs).lower()]= class_iri
+            if ("http://www.w3.org/2004/02/skos/core#prefLabel" in lab.getProperty().toString()):
+                labs = lab.getValue().getLiteral()
+                #print("label in prefLabel", labs )
+                ont2_label2class[str(labs).lower()]= class_iri
 
-		base2 = onto2.base_iri
-		print("parse labels for ontology 2")
-		for cl in onto2.classes():		
-			labels = cl.label
-			ont2_label2class[cl.name.lower()]= cl.iri
-			for lab in labels:
-				ont2_label2class[lab.lower()]= cl.iri
-	except:
-		print("owlready fails to parse target ontology, trying owlapi ... ")
-	ont2 = manager.loadOntologyFromOntologyDocument(File(target))
-	for cl in ont2.getClassesInSignature(True):
-		class_iri = str(cl.toString().replace("<","").replace(">",""))
-		id_index_start = max(class_iri.find("/"),class_iri.find("#"))
-		class_id = class_iri[id_index_start:]
-		ont2_label2class[class_id.lower()]= class_iri
-		for lab in EntitySearcher.getAnnotationObjects(cl, ont2, fac.getRDFSLabel()):
-			print(lab.getValue())
-			if (lab.getValue().isOfType(OWLLiteral)):
-				labs = lab.getValue().getLiteral()
-				print("label in get litral", labs )
-				ont2_label2class[labs.lower()]= class_iri
-			if ("http://www.w3.org/2004/02/skos/core#prefLabel" in lab.getProperty().toString()):
-				labs = lab.getValue().getLiteral()
-				print("label in prefLabel", labs )
-				ont2_label2class[labs.lower()]= class_iri
+    if(len(ont2_label2class.keys())>5):
+        print("not enuogh labels in the target ontology")
+    with open(txt+'_target.json','w') as f:
+            json.dump(ont2_label2class,f)
 
-	if(len(ont2_label2class.keys())>5):
-				print("not enuogh labels in the target ontology")
-	with open(txt+'_target.json','w') as f:
-		json.dump(ont2_label2class,f)
-
-	print("start lexical alignments")
-	alignments = []
+    print("start lexical alignments")
+    alignments = []
     print("start Parallelizing lexical matching")
 
     accepted_ratio = 96
@@ -293,6 +293,7 @@ def LexicalMatch(source, target, txt):
     ont2_cls = [c for c in onto2.classes()]
     min_entities = min(len(ont1_cls), len(ont2_cls))//2
 
+    min_alignments = None
     #min_entities = 10
     while(len(alignments) <= min_entities and accepted_ratio>60):
 
@@ -301,6 +302,9 @@ def LexicalMatch(source, target, txt):
         Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys) )
         for  i in range(len(keys)):
             alignments+=Result[i]
+            
+        if min_alignments is None:
+            min_alignments = len(alignments)//20 +1
         print(len(alignments), "alignment found with accepted ratio", accepted_ratio)
         accepted_ratio-=10
 
@@ -309,9 +313,13 @@ def LexicalMatch(source, target, txt):
     #with open(txt+'.json','w') as f:
     #    json.dump(alignments,f)
 
+    if min_alignments is None:
+        min_alignments = 0
 
+    print(f"TOTAL ALIGNMENTS =",  len(alignments))
+    print(f"TOTAL MIN ALIGNMENTS =",  min_alignments)
 
-    return alignments 
+    return alignments, min_alignments
 
 
 
@@ -426,13 +434,13 @@ def removeInconsistincyAlignmnets(source, target, predicted_alignment):
         for cl in unsatisfaiable_classes:
             print("##############class to explain", cl.toString())
             explanation = multExplanator.getExplanation(cl)
-            print(explanation.toString())
+            #print(explanation.toString())
             for axiom in explanation:
                 print("--------------guilty axiom--------------")
                 if(axiom.isOfType(AxiomType.EQUIVALENT_CLASSES)):
-                    print(axiom.toString())
+                    #print(axiom.toString())
                     classes = axiom.getNamedClasses()
-                    align = [classes[0].toString(),classes[1].toString()]
+                    align = [str(classes[0].toString()),str(classes[1].toString())]
                     if (align in added):
                         inc_negatives.append(align)
 

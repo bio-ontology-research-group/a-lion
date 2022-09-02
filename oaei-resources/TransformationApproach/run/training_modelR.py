@@ -69,7 +69,7 @@ params = {
     "L1": 1,
     "lr": 0.01,
     "margin": 1,
-    "AM_folds": 20,
+    "AM_folds": 10,
     "topk": 10,
     "threshold": 0.1,
 
@@ -89,7 +89,7 @@ def generate_alignments(model_file, data_file):
     target_entities = list(tester.multiG.KG2.ents.keys())
 
     min_entities = min(len(source_entities), len(target_entities))//2
-    
+    #min_entities = 10
     target_entities_vectors = tester.vec_e[2]
         
     alignments = []
@@ -107,7 +107,7 @@ def generate_alignments(model_file, data_file):
                     if class_ in source_entities:
                         source_entities.remove(class_)
 
-                    print(class_url, rst[i][0], rst[i][1])
+                    #print(class_url, rst[i][0], rst[i][1])
                     alignments.append([class_url, rst[i][0], "=", 1.0])
 
         if (len(alignments) >= min_entities) or threshold > 1.0 :
@@ -120,17 +120,22 @@ def generate_alignments(model_file, data_file):
 
 
     tester = Tester()
-    tester.build(save_path = self.save_path, data_save_path = self.multiG_save_path)
+    tester.build(save_path = model_file, data_save_path = data_file)
     predictions = tester.predicted_alignments(5 ,0.1)
     ls = removeInconsistincyAlignmnets(source, target, predictions)
-
+    print(ls)
     print("-------------------")
-    print("Predictions found: {len(predictions)}")
+    print(f"Predictions found: {len(predictions)}")
     print("-------------------")
-    print("Inconsistencies found: {len(ls)}")
+    print(f"Inconsistencies found: {len(ls)}")
 
     
     #shutil.rmtree("data/")
+    ls = set([(x[0], x[1], "=", 1.0)  for x in ls])
+    alignments = [tuple(x) for x in alignments]
+    print(f"Number of original alignments: {len(alignments)}")
+    alignments = list(set(alignments) - ls)
+    print(f"Number of alignments after removing inconsistencies: {len(alignments)}")
     return alignments
 
 
@@ -170,7 +175,11 @@ def train_model(source_owl, target_owl):
     #lexical_alignments_file_name = "data/lexical_alignments"
     #if not os.path.exists(lexical_alignments_file_name+ ".json"):
     print("Computing lexical alignments")
-    alignments = LexicalMatch(source_owl, target_owl, lexical_alignments_file_name)
+    alignments, min_alignments = LexicalMatch(source_owl, target_owl, lexical_alignments_file_name)
+
+    AM_folds = min_alignments #int(min_alignments//20)+1
+    print("AM Folds: ", AM_folds)
+
     
     #print("Loading lexical alignments from file")
     #this_data.load_align_json(lexical_alignments_file_name+ ".json")

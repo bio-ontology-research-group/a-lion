@@ -246,7 +246,7 @@ class Tester(object):
             for i in range(topk):
                 if(rst[i][1]<threshold):
                     print(rst[i][1])
-                    tuple_ = (class_url,rst[i][0])
+                    tuple_ = (str(class_url),str(rst[i][0]))
                     mappings.append(tuple_)
                 else:
                     continue

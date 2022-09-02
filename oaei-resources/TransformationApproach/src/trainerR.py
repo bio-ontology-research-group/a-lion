@@ -229,17 +229,6 @@ class Trainer(object):
 
         # get alignments, train 50 epochs with inconsistincy negatives
         tester = Tester()
-        tester.build(save_path = self.save_path, data_save_path = self.multiG_save_path)
-        predictions = tester.predicted_alignments(5 ,0.1)
-        ls = removeInconsistincyAlignmnets(source, target, predictions)
-
-        print("-------------------")
-        print(predictions)
-        print("-------------------")
-        print(ls)
-
-
-
 
         print("Done")
 

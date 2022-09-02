@@ -320,3 +320,5 @@ class TFParts(object):
             self._train_op_B = train_op_B = opt.minimize(B_loss)
             self._train_op_AM = train_op_AM = opt.minimize(AM_loss)
             self._train_op_AM_inc = train_op_AM_inc = opt.minimize(AM_inc_loss)
+
+            self._saver = tf.train.Saver()

@@ -49,11 +49,11 @@ public class EvaluationExample {
 
         // Let's add all tracks we want to evaluate to a list
         List<Track> tracks = new ArrayList<>();
-        tracks.add(TrackRepository.Conference.V1);
+        //tracks.add(TrackRepository.Conference.V1);
         tracks.add(TrackRepository.Anatomy.Default);
-        tracks.add(TrackRepository.Biodiv.Default);
-	tracks.add(TrackRepository.BioML.V2022.EQUIV_UNSUPERVISED);
-	tracks.add(TrackRepository.BioML.V2022.EQUIV_SUPERVISED);
+        // tracks.add(TrackRepository.Biodiv.Default);
+	// tracks.add(TrackRepository.BioML.V2022.EQUIV_UNSUPERVISED);
+	// tracks.add(TrackRepository.BioML.V2022.EQUIV_SUPERVISED);
 	
 
 

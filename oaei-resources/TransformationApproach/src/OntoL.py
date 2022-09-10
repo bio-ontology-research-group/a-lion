@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import sys
+#sys.setrecursionlimit(3000)
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 from KG import KG
@@ -51,6 +52,7 @@ from java.io import File, PrintWriter, BufferedWriter, FileWriter, FileOutputStr
 from com.clarkparsia.owlapi.explanation import BlackBoxExplanation
 from com.clarkparsia.owlapi.explanation import HSTExplanationGenerator
 
+from mowl.projection.owl2vec_star.model import OWL2VecStarProjector
 
 
 
@@ -110,79 +112,16 @@ def Onto2KG(ontology_file_path):
 
 
     manager = OWLManager.createOWLOntologyManager()
-    fac = manager.getOWLDataFactory()
-
-
-    progressMonitor = ConsoleProgressMonitor()
-    config = SimpleConfiguration(progressMonitor)
-    f = ElkReasonerFactory()
-
 
     #load ontology
     ont = manager.loadOntologyFromOntologyDocument(File(ontology_file_path))
-    reasoner = f.createReasoner(ont,config)
+    projector = OWL2VecStarProjector(only_taxonomy = False, bidirectional_taxonomy = True, include_literals=True)
+    graph = projector.project(ont)
 
-    oset =  LinkedHashSet()
-    for ax in InferredClassAssertionAxiomGenerator().createAxioms(fac, reasoner):
-        manager.addAxiom(ont, ax)
-
-    infered_output = FileOutputStream(ontology_file_path+"_infered")
-    manager.saveOntology(ont, infered_output )
-
-    model = ModelFactory.createDefaultModel()
-    infile = FileManager.get().open( ontology_file_path+"_infered" )
-    model.read(infile,"RDF/XML")
-
-    counter_p = 0
-    counter_e = 0
-    map_p = {} 
-    map_e = {}
-    edgelist=[] 
-    for stmt in model.listStatements():
-        pred = stmt.getPredicate().toString()
-        subj = stmt.getSubject()
-        obj = stmt.getObject()
-
-        if(str(pred) == "http://www.w3.org/2000/01/rdf-schema#subClassOf"):
-
-            if (subj.isURIResource() and obj.isURIResource()):
-
-                if (pred not in map_p):
-                    map_p[pred] = counter_p
-                    counter_p += 1
-                if (subj.toString() not in map_e):
-                    map_e[subj.toString()] = counter_e
-                    counter_e += 1
-                    
-                if (obj.toString() not in map_e):
-                    map_e[obj.toString()] = counter_e
-                    counter_e += 1
-
-
-                predid = str(map_p[pred])
-                subjid = str(map_e[subj.toString()])
-                objid = str(map_e[obj.toString()])
-
-                edgelist.append([pred,subj.toString(),obj.toString()])
-                #edgelist.append([subjid,objid,predid])
-                #fout.println(subjid+"\t"+objid+"\t"+predid)
-
-    #for k in map_e:
-    #  meout.println(k+"\t"+str(map_e[k]))
-
-    #for k in map_p:
-    #  mpout.println(k+"\t"+str(map_p[k]))
-
-
-    #fout.flush()
-    #fout.close()
-    #meout.flush()
-    #meout.close()
-    #mpout.flush()
-    #mpout.close()
+    triples = [x.astuple() for x in graph]
 
     newKG = KG()
-    newKG.load_triples_from_dic(edgelist)
+    newKG.load_triples_from_dict(triples)
     return newKG
 
 
@@ -297,9 +236,9 @@ def LexicalMatch(source, target, txt):
     #min_entities = 10
     while(len(alignments) <= min_entities and accepted_ratio>60):
 
-        keys = ont1_label2class.keys()
+        keys = list(ont1_label2class.keys())
         num_core = multiprocessing.cpu_count()
-        Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in keys )
+        Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys) )
         for  i in range(len(keys)):
             alignments+=Result[i]
             

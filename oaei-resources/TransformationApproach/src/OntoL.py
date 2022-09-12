@@ -118,7 +118,7 @@ def Onto2KG(ontology_file_path):
     projector = OWL2VecStarProjector(only_taxonomy = False, bidirectional_taxonomy = True, include_literals=True)
     graph = projector.project(ont)
 
-    triples = [x.astuple() for x in graph]
+    triples = [(x.astuple()[0],x.astuple()[2],x.astuple()[1]) for x in graph]
 
     newKG = KG()
     newKG.load_triples_from_dict(triples)

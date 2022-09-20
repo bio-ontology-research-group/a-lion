@@ -49,7 +49,7 @@ class KG(object):
         self.wv_dim = 100
         self.batch_size = 1024
 
-    def load_triples_from_dict(self, edgelist):
+    def load_triples_from_dic(self, edgelist):
         triples = []
         last_c = -1
         last_r = -1

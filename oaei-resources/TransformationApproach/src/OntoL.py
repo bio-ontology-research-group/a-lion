@@ -117,7 +117,6 @@ def Onto2KG(ontology_file_path):
     config = SimpleConfiguration(progressMonitor)
     f = ElkReasonerFactory()
 
-
     #load ontology
     ont = manager.loadOntologyFromOntologyDocument(File(ontology_file_path))
     reasoner = f.createReasoner(ont,config)

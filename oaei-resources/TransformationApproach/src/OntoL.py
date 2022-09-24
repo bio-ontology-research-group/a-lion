@@ -15,8 +15,10 @@ from fuzzywuzzy import fuzz
 import json
 from joblib import Parallel, delayed 
 import multiprocessing
-from tqdm import tqdm
+import concurrent.futures
+from tqdm import tqdm, trange
 import numpy as np
+from functools import partial
 #jars_dir = "../src/gateway/build/distributions/gateway/lib/"
 #jars = str(str.join(":", [jars_dir+name for name in os.listdir(jars_dir)]))
 #startJVM(getDefaultJVMPath(), "-ea",  "-Djava.class.path=" + jars,  convertStrings=False)
@@ -191,6 +193,9 @@ def Onto2KG(ontology_file_path):
 #kg = Onto2KG("/home/alghsm0a/AgreementMakerDeep-main/conf/oaei-resources/source.owl", "test")
 #print(kg)
 
+def lex_ma_from_dic_pool(dic1, dic2, r, lab):
+    k = dic1[lab]
+    return lex_ma_from_dic(lab, k, dic2, r)
 
 def lex_ma_from_dic(lab,k,dic,r):
     ls = []
@@ -298,8 +303,15 @@ def LexicalMatch(source, target, txt):
 
         keys = ont1_label2class.keys()
         num_core = multiprocessing.cpu_count()
-        Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in keys )
-        for  i in range(len(keys)):
+
+        pool = multiprocessing.Pool(num_core)
+        print("Starting pool...")
+        Result = [pool.apply_async(lex_ma_from_dic_pool, args=(ont1_label2class, ont2_label2class, accepted_ratio, k)) for k in keys]
+        Result = [p.get() for p in Result]
+        # Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in tqdm(keys))
+        print("Done pool...")
+        print("start adding lexical alignments")
+        for  i in trange(len(keys)):
             alignments+=Result[i]
             
         if min_alignments is None:

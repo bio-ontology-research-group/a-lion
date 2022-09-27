@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import pickle
 import time
@@ -54,7 +55,7 @@ class multiG(object):
         self.load_align_list(ls)
 
 
-    def load_align_list(self, list_of_alignments ):
+    def load_align_list(self, list_of_alignments):
         '''Load the dataset.'''
         weight = 1.
         align = []
@@ -65,10 +66,20 @@ class multiG(object):
         self.align = []
         for a in list_of_alignments:
             if(len(a)<2):
+                print("Error: alignment should have at least two elements")
                 continue
+            
             e1 = self.KG1.ent_str2index(a[0])
             e2 = self.KG2.ent_str2index(a[1])
-            if e1 == None or e2 == None:
+            
+            with open("tmp_kg1.txt", "w") as f:
+                for k, v in self.KG1.index_ents.items():
+                    f.write("{}\t{}\n".format(k, v))
+            with open("tmp_kg2.txt", "w") as f:
+                for k, v in self.KG2.index_ents.items():
+                    f.write("{}\t{}\n".format(k, v))
+
+            if e1 is None or e2 is None:
                 continue
             self.align.append((e1, e2))
             self.aligned_KG1.add(e1)

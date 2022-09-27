@@ -15,7 +15,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 # This is to make auto reloading in Notebook happy
 from multiG import multiG
 from trainerR import Trainer
-from OntoL import Onto2KG, LexicalMatch, removeInconsistincyAlignmnets
+from OntoL import Onto2KG, LexicalMatch, removeInconsistincyAlignmnets, Onto2KGDL2Vec
 
 from testerR import Tester
 # print(tf.version)
@@ -66,9 +66,9 @@ def ranked_predicted_alignments(model_file, data_file,
 
 params = {
     "embedding_size": 128,
-    "epochs": 21,  # 401,
+    "epochs": 401,
     "batch_k": 64,
-    "batch_a": 16,
+    "batch_a": 32,
     "a1": 1,
     "L1": 1,
     "lr": 0.01,
@@ -92,7 +92,7 @@ def generate_alignments(model_file, data_file, source, target, root=None):
     source_entities = list(tester.multiG.KG1.ents.keys())
     target_entities = list(tester.multiG.KG2.ents.keys())
 
-    min_entities = min(len(source_entities), len(target_entities))//2
+    min_entities = min(len(source_entities), len(target_entities)) // 2
     target_entities_vectors = tester.vec_e[2]
 
     alignments = []
@@ -148,7 +148,11 @@ Num of aligns: {len(alignments)}. Min entities: {min_entities}")
     return alignments
 
 
-def train_model(source_owl, target_owl, root=None):
+def train_model(source_owl,
+                target_owl,
+                mode="unsupervised",
+                training_triples_file=None,
+                root=None):
 
     # Params accessing ###########
     this_dim = params["embedding_size"]
@@ -172,8 +176,8 @@ def train_model(source_owl, target_owl, root=None):
     #####################################
 
     # Knowledge Graph Building #####
-    KG1 = Onto2KG(source_owl)
-    KG2 = Onto2KG(target_owl)
+    KG1 = Onto2KGDL2Vec(source_owl)
+    KG2 = Onto2KGDL2Vec(target_owl)
     ####################################
 
     this_data = multiG(KG1, KG2)
@@ -186,17 +190,41 @@ def train_model(source_owl, target_owl, root=None):
                                                     "lexical_alignments.txt")
     # lexical_alignments_file_name = "data/lexical_alignments"
     # if not os.path.exists(lexical_alignments_file_name+ ".json"):
-    print("Computing lexical alignments")
-    alignments, min_alignments = LexicalMatch(source_owl,
-                                              target_owl,
-                                              lexical_alignments_file_name)
+    if mode == "unsupervised":
+        print("Computing lexical alignments")
+        alignments, min_alignments = LexicalMatch(source_owl,
+                                                  target_owl,
+                                                  lexical_alignments_file_name)
 
-    AM_folds = min_alignments  # int(min_alignments//20)+1
+        AM_folds = min_alignments  # int(min_alignments//20)+1
+        print("AM Folds: ", AM_folds)
+
+    elif mode == "semisupervised":
+
+        # print("Computing lexical alignments")
+        # lexical_alignments, lex_min_alignments = LexicalMatch(source_owl,
+        #                                          target_owl,
+        #                                          lexical_alignments_file_name)
+
+        # lex_AM_folds = lex_min_alignments  # int(min_alignments//20)+1
+        # print("AM Folds: ", AM_folds)
+
+        
+        with open(training_triples_file, "r") as f:
+            train_alignments = []
+            lines = f.readlines()[1:]
+            for line in lines:
+                src, dst, _ = line.split("\t")
+                train_alignments.append((src, dst))
+        print("Number of training triples: ", len(train_alignments))
+        train_min_alignments = len(train_alignments) // 20 + 1
+
+
+    AM_folds = train_min_alignments # min(lex_AM_folds, train_min_alignments)
     print("AM Folds: ", AM_folds)
 
-    # print("Loading lexical alignments from file")
-    # this_data.load_align_json(lexical_alignments_file_name+ ".json")
-    this_data.load_align_list(alignments)
+    this_data.load_align_list(train_alignments)
+    #this_data.load_align_list(list(set(lexical_alignments) | set(train_alignments)))
 
     m_train = Trainer()
     m_train.build(
@@ -229,7 +257,8 @@ def train_model(source_owl, target_owl, root=None):
 @ck.option('--reference', "-r", type=str, help='Reference alignment file')
 @ck.option('--mode', '-m', type=ck.Choice(["semisupervised", "unsupervised"]),
            help='Mode')
-def main(source, target, reference, mode):
+@ck.option('--training-triples-file', "-tr", default="", type=str, help='Training triples file')
+def main(source, target, reference, mode, training_triples_file):
 
     if not os.path.exists(source):
         raise FileNotFoundError(f"Source file {source} not found")
@@ -246,7 +275,12 @@ def main(source, target, reference, mode):
     if not os.path.exists(root):
         os.makedirs(root)
 
-    model_file, data_file = train_model(source, target, root=root)
+    model_file, data_file = train_model(source,
+                                        target,
+                                        mode=mode,
+                                        training_triples_file=training_triples_file,
+                                        root=root)
+
     ranked_predicted_alignments(model_file,
                                 data_file,
                                 reference,

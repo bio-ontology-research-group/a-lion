@@ -193,6 +193,10 @@ def Onto2KG(ontology_file_path):
 #print(kg)
 
 
+def lex_ma_from_dic_pool(dic1, dic2, r, label):
+    k = dic1[label]
+    return lex_ma_from_dic(label, k, dic2, r)
+
 def lex_ma_from_dic(lab,k,dic,r):
     ls = []
     for l in dic:
@@ -299,7 +303,13 @@ def LexicalMatch(source, target, txt):
 
         keys = ont1_label2class.keys()
         num_core = multiprocessing.cpu_count()
-        Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in keys )
+
+        pool = multiprocessing.Pool(num_core)
+        print("Starting pool...")
+        Result = [pool.apply_async(lex_ma_from_dic_pool,
+                                   args=(ont1_label2class, ont2_label2class, accepted_ratio, k)) for k in keys]
+        Result = [p.get() for p in Result]
+        # Result = Parallel(n_jobs=1)(delayed(lex_ma_from_dic)(k,ont1_label2class[k], ont2_label2class,accepted_ratio) for k in keys )
         for  i in range(len(keys)):
             alignments+=Result[i]
             

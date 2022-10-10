@@ -51,9 +51,15 @@ def ranked_predicted_alignments(model_file, data_file, reference_alignment_file,
         X.append(mappings_index[k][1])
         Y.append(mappings_index[k][0])
 
-    print("recal", recall_score(X, Y) )
-    print("precision", precision_score(X, Y))
-    print("f1_score", f1_score(X, Y))
+    recall = recall_score(X, Y)
+    precision = precision_score(X, Y)
+    f1 = f1_score(X, Y)
+    print("recal", recall)
+    print("precision", precision)
+    print("f1_score", f1)
+
+    
+    return recall, precision, f1
 
 
 def generate_alignments(model_file, data_file, source, target, topk, threshold, root=None):
@@ -279,7 +285,7 @@ def main(source,
     if aim in ("predict", "all"):
         model_file = os.path.join(root, "modelbin")
         data_file = os.path.join(root, "databin")
-        ranked_predicted_alignments(model_file,
+        recall, precision, f1 = ranked_predicted_alignments(model_file,
                                     data_file,
                                     reference,
                                     source,
@@ -287,6 +293,9 @@ def main(source,
                                     topk,
                                     threshold,
                                     root=root)
+
+        with open("data/hpo_results.txt", "a") as f:
+            f.write(f"{source_prefix} {target_prefix} {embedding_size} {epochs} {batch_k} {batch_a} {a1} {l1} {lr} {margin} {am_folds} {topk} {threshold} {recall} {precision} {f1}\n")
 
     else:
         raise ValueError(f"Aim {aim} not recognized")

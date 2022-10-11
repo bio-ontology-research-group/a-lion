@@ -108,7 +108,7 @@ def generate_alignments(model_file, data_file):
                         source_entities.remove(class_)
 
                     #print(class_url, rst[i][0], rst[i][1])
-                    alignments.append([class_url, rst[i][0], "=", 1.0])
+                    alignments.append([class_url, rst[i][0], "=", 1-rst[i][1]])
 
         if (len(alignments) >= min_entities) or threshold > 1.0 :
             acceptable_alignments = True

@@ -37,7 +37,7 @@ function getJobArrayParams () {
 getJobArrayParams
 
 # Run the code
-python training_modelR.py --source $SOURCE_OWL --target $TARGET_OWL --reference $REFERENCE -size $emb_size --epochs $epochs --batch-k $batch_k --batch-a $batch_a --lr $lr --margin $margin --topk $topk --minth $minth --maxth $maxth --aim predict --root data/test
+python training_modelR.py --source $SOURCE_OWL --target $TARGET_OWL --reference $REFERENCE -size $emb_size --epochs $epochs --batch-k $batch_k --batch-a $batch_a --lr $lr --margin $margin --topk $topk --minth $minth --maxth $maxth --aim predict --root data/test_no_batch
 
 
 			    

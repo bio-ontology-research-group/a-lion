@@ -214,6 +214,7 @@ def train_model(source_owl,
 @ck.option("--topk", "-k", default=10, type=int)
 @ck.option("--min-threshold", "-minth", default=0.1, type=float)
 @ck.option("--max-threshold", "-maxth", default=0.9, type=float)
+@ck.option("--root-dir", "-roor", default="data/", type=str)
 def main(source,
          target,
          reference,
@@ -229,7 +230,8 @@ def main(source,
          am_folds,
          topk,
          min_threshold,
-         max_threshold):
+         max_threshold,
+         root):
 
     # print all the click arguments
     print("-----------------------")
@@ -260,7 +262,10 @@ def main(source,
     if not os.path.exists(reference):
         raise FileNotFoundError(f"Reference file {reference} not found")
 
-    root = "data/"
+    if not os.path.exists(root):
+        os.makedirs(root)
+
+    
     source_prefix = source.split("/")[-1].split(".owl")[0]
     target_prefix = target.split("/")[-1].split(".owl")[0]
     root += f"{source_prefix}_{target_prefix}_emb{embedding_size}_e{epochs}_bsk{batch_k}_bsa{batch_a}_a1{a1}_L1{l1}_lr{lr}_m{margin}_AM{am_folds}_k{topk}_th{min_threshold}/"

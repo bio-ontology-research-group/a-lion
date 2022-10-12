@@ -1,0 +1,9 @@
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.1
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.2
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.3
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.4
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.5
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.6
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.7
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.8
+data/Testing_anatomy/mouse.owl data/Testing_anatomy/human.owl data/Testing_anatomy/reference.tsv 128 401 32 32 0.01 1.5 20 0.1 0.9

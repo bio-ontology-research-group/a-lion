@@ -22,9 +22,9 @@ from testerR import Tester
 # print(tf.version)
 from tqdm import tqdm
 
-def ranked_predicted_alignments(model_file, data_file, reference_alignment_file, source, target, topk, threshold, root=None):
+def ranked_predicted_alignments(model_file, data_file, reference_alignment_file, source, target, topk, min_threshold, max_threshold, root=None):
 
-    pred_alignments = generate_alignments(model_file, data_file, source, target, topk, threshold, root=root)
+    pred_alignments = generate_alignments(model_file, data_file, source, target, topk, min_threshold, max_threshold, root=root)
 
     mappings_index = {}
 
@@ -62,7 +62,7 @@ def ranked_predicted_alignments(model_file, data_file, reference_alignment_file,
     return recall, precision, f1
 
 
-def generate_alignments(model_file, data_file, source, target, topk, threshold, root=None):
+def generate_alignments(model_file, data_file, source, target, topk, min_threshold, max_threshold, root=None):
     #model_file = params["model_path"]
     #data_file = params["data_path"]
     if root is None or not isinstance(root, str):
@@ -88,19 +88,19 @@ def generate_alignments(model_file, data_file, source, target, topk, threshold, 
             vec_proj_class = tester.projection(class_, source=1)
             rst = tester.kNN_with_names(vec_proj_class, target_entities_vectors, topk)
             for i in range(topk):
-                if(rst[i][1] < threshold):
+                if(rst[i][1] < min_threshold):
                     if class_ in source_entities:
                         source_entities.remove(class_)
 
                     #print(class_url, rst[i][0], rst[i][1])
                     alignments.append([class_url, rst[i][0], "=", 1.0])
 
-        if (len(alignments) >= min_entities) or threshold > 1.0 :
+        if (len(alignments) >= min_entities) or min_threshold > max_threshold:
             acceptable_alignments = True
         else:
             print(f"Not enough alignments, trying higher threshold. Num of aligns: {len(alignments)}. Min entities: {min_entities}")
 
-            threshold += 0.1
+            min_threshold += 0.1
             print(f"")
 
     tester = Tester()
@@ -140,8 +140,7 @@ def train_model(source_owl,
                 lr,
                 margin,
                 AM_folds,
-                topk,
-                threshold, root=None):
+                root=None):
 
     ####### Params accessing ###########
     this_dim = embedding_size
@@ -213,7 +212,8 @@ def train_model(source_owl,
 @ck.option("--margin", "-m", default=1, type=float)
 @ck.option("--am-folds", "-am", default=10, type=int)
 @ck.option("--topk", "-k", default=10, type=int)
-@ck.option("--threshold", "-th", default=0.1, type=float)
+@ck.option("--min-threshold", "-minth", default=0.1, type=float)
+@ck.option("--max-threshold", "-maxth", default=0.9, type=float)
 def main(source,
          target,
          reference,
@@ -228,7 +228,8 @@ def main(source,
          margin,
          am_folds,
          topk,
-         threshold):
+         min_threshold,
+         max_threshold):
 
     # print all the click arguments
     print("-----------------------")
@@ -247,7 +248,8 @@ def main(source,
     print("margin: ", margin)
     print("am_folds: ", am_folds)
     print("topk: ", topk)
-    print("threshold: ", threshold)
+    print("min_threshold: ", min_threshold)
+    print("max_threshold: ", max_threshold)
     print("-----------------------")
     
 
@@ -261,7 +263,7 @@ def main(source,
     root = "data/"
     source_prefix = source.split("/")[-1].split(".owl")[0]
     target_prefix = target.split("/")[-1].split(".owl")[0]
-    root += f"{source_prefix}_{target_prefix}_emb{embedding_size}_e{epochs}_bsk{batch_k}_bsa{batch_a}_a1{a1}_L1{l1}_lr{lr}_m{margin}_AM{am_folds}_k{topk}_th{threshold}/"
+    root += f"{source_prefix}_{target_prefix}_emb{embedding_size}_e{epochs}_bsk{batch_k}_bsa{batch_a}_a1{a1}_L1{l1}_lr{lr}_m{margin}_AM{am_folds}_k{topk}_th{min_threshold}/"
     # create root dir if not exists
     if not os.path.exists(root):
         os.makedirs(root)
@@ -278,8 +280,6 @@ def main(source,
                                             lr,
                                             margin,
                                             am_folds,
-                                            topk,
-                                            threshold,
                                             root=root)
 
     if aim in ("predict", "all"):
@@ -291,11 +291,12 @@ def main(source,
                                     source,
                                     target,
                                     topk,
-                                    threshold,
+                                    min_threshold,
+                                    max_threshold,
                                     root=root)
 
         with open("data/hpo_results.txt", "a") as f:
-            f.write(f"{source_prefix} {target_prefix} {embedding_size} {epochs} {batch_k} {batch_a} {a1} {l1} {lr} {margin} {am_folds} {topk} {threshold} {recall} {precision} {f1}\n")
+            f.write(f"{source_prefix} {target_prefix} {embedding_size} {epochs} {batch_k} {batch_a} {a1} {l1} {lr} {margin} {am_folds} {topk} {min_threshold} {recall} {precision} {f1}\n")
 
     else:
         raise ValueError(f"Aim {aim} not recognized")

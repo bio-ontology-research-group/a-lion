@@ -214,7 +214,7 @@ def train_model(source_owl,
 @ck.option("--topk", "-k", default=10, type=int)
 @ck.option("--min-threshold", "-minth", default=0.1, type=float)
 @ck.option("--max-threshold", "-maxth", default=0.9, type=float)
-@ck.option("--root-dir", "-roor", default="data/", type=str)
+@ck.option("--root-dir", "-root", default="data/", type=str)
 def main(source,
          target,
          reference,

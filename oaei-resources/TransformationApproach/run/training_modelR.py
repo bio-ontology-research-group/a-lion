@@ -231,7 +231,7 @@ def main(source,
          topk,
          min_threshold,
          max_threshold,
-         root):
+         root_dir):
 
     # print all the click arguments
     print("-----------------------")
@@ -252,6 +252,7 @@ def main(source,
     print("topk: ", topk)
     print("min_threshold: ", min_threshold)
     print("max_threshold: ", max_threshold)
+    print("root_dir: ", root_dir)
     print("-----------------------")
     
 
@@ -262,13 +263,17 @@ def main(source,
     if not os.path.exists(reference):
         raise FileNotFoundError(f"Reference file {reference} not found")
 
+    root = root_dir
+    root_copy = root_dir
+    prev_root = "data/"
     if not os.path.exists(root):
         os.makedirs(root)
 
-    
     source_prefix = source.split("/")[-1].split(".owl")[0]
     target_prefix = target.split("/")[-1].split(".owl")[0]
-    root += f"{source_prefix}_{target_prefix}_emb{embedding_size}_e{epochs}_bsk{batch_k}_bsa{batch_a}_a1{a1}_L1{l1}_lr{lr}_m{margin}_AM{am_folds}_k{topk}_th{min_threshold}/"
+
+    post_root = f"{source_prefix}_{target_prefix}_emb{embedding_size}_e{epochs}_bsk{batch_k}_bsa{batch_a}_a1{a1}_L1{l1}_lr{lr}_m{margin}_AM{am_folds}_k{topk}_th{min_threshold}/"
+    root += post_root
     # create root dir if not exists
     if not os.path.exists(root):
         os.makedirs(root)
@@ -288,8 +293,8 @@ def main(source,
                                             root=root)
 
     if aim in ("predict", "all"):
-        model_file = os.path.join(root, "modelbin")
-        data_file = os.path.join(root, "databin")
+        model_file = os.path.join(prev_root+post_root, "modelbin")
+        data_file = os.path.join(prev_root+post_root, "databin")
         recall, precision, f1 = ranked_predicted_alignments(model_file,
                                     data_file,
                                     reference,
@@ -300,8 +305,8 @@ def main(source,
                                     max_threshold,
                                     root=root)
 
-        with open("data/hpo_results.txt", "a") as f:
-            f.write(f"{source_prefix} {target_prefix} {embedding_size} {epochs} {batch_k} {batch_a} {a1} {l1} {lr} {margin} {am_folds} {topk} {min_threshold} {recall} {precision} {f1}\n")
+        with open(os.path.join(root_copy, "hpo_results.txt"), "a") as f:
+            f.write(f"{source_prefix} {target_prefix} {embedding_size} {epochs} {batch_k} {batch_a} {a1} {l1} {lr} {margin} {am_folds} {topk} {min_threshold} {max_threshold} {recall} {precision} {f1}\n")
 
     else:
         raise ValueError(f"Aim {aim} not recognized")

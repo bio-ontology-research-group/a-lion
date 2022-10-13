@@ -84,7 +84,7 @@ def generate_alignments(model_file, data_file, source, target, topk, min_thresho
     alignments = []
 
     acceptable_alignments = False
-    min_threshold = 0
+    min_threshold = max_threshold
     while not acceptable_alignments:
         for class_ in source_entities:#tqdm(source_entities, total = len(source_entities)):
             class_url = tester.multiG.KG1.ent_index2str(class_)
@@ -101,11 +101,13 @@ def generate_alignments(model_file, data_file, source, target, topk, min_thresho
         if ((len(alignments) >= min_entities) or True) and min_threshold >= max_threshold:
             acceptable_alignments = True
         else:
-            print(f"Not enough alignments, trying higher threshold. Num of aligns: {len(alignments)}. Min entities: {min_entities}")
-
             min_threshold += 0.01
+            print(f"Not enough alignments, trying higher threshold {min_threshold}. Num of aligns: {len(alignments)}. Min entities: {min_entities}")
+
+            
             print(f"")
 
+    
     tester = Tester()
     tester.build(save_path=model_file, data_save_path=data_file)
     predictions = tester.predicted_alignments(5 , min_threshold)
@@ -129,6 +131,7 @@ def generate_alignments(model_file, data_file, source, target, topk, min_thresho
         for src, dst, _, score in alignments:
             f.write(f"{src}\t{dst}\t{score}\n")
 
+    print(f"Threshold to be used: {min_threshold}")
     return alignments
 
 

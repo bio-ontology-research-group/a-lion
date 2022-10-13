@@ -22,7 +22,7 @@ from testerR import Tester
 # print(tf.version)
 from tqdm import tqdm
 
-def ranked_predicted_alignments(model_file, data_file, reference_alignment_file, source, target, topk, min_threshold, max_threshold, root=None):
+def ranked_predicted_alignments(model_file, data_file, reference_alignment_file, source, target, topk, min_threshold, max_threshold, root=None, header = True):
 
     pred_alignments = generate_alignments(model_file, data_file, source, target, topk, min_threshold, max_threshold, root=root)
 
@@ -35,6 +35,9 @@ def ranked_predicted_alignments(model_file, data_file, reference_alignment_file,
 
     with open(reference_alignment_file) as f:
         content = f.readlines()
+        if header:
+            content = content[1:]
+            print(len(content))
 
     for p in content:
         line = p.split()
@@ -81,7 +84,7 @@ def generate_alignments(model_file, data_file, source, target, topk, min_thresho
     alignments = []
 
     acceptable_alignments = False
-
+    min_threshold = 0
     while not acceptable_alignments:
         for class_ in source_entities:#tqdm(source_entities, total = len(source_entities)):
             class_url = tester.multiG.KG1.ent_index2str(class_)
@@ -95,17 +98,17 @@ def generate_alignments(model_file, data_file, source, target, topk, min_thresho
                     #print(class_url, rst[i][0], rst[i][1])
                     alignments.append([class_url, rst[i][0], "=", 1.0])
 
-        if (len(alignments) >= min_entities) or min_threshold > max_threshold:
+        if ((len(alignments) >= min_entities) or True) and min_threshold >= max_threshold:
             acceptable_alignments = True
         else:
             print(f"Not enough alignments, trying higher threshold. Num of aligns: {len(alignments)}. Min entities: {min_entities}")
 
-            min_threshold += 0.1
+            min_threshold += 0.01
             print(f"")
 
     tester = Tester()
     tester.build(save_path=model_file, data_save_path=data_file)
-    predictions = tester.predicted_alignments(5 , 0.1)
+    predictions = tester.predicted_alignments(5 , min_threshold)
     ls = removeInconsistincyAlignmnets(source, target, predictions)
     print(ls)
     print("-------------------")
@@ -253,6 +256,7 @@ def main(source,
     print("min_threshold: ", min_threshold)
     print("max_threshold: ", max_threshold)
     print("root_dir: ", root_dir)
+    
     print("-----------------------")
     
 
@@ -264,8 +268,7 @@ def main(source,
         raise FileNotFoundError(f"Reference file {reference} not found")
 
     root = root_dir
-    root_copy = root_dir
-    prev_root = "data/"
+    
     if not os.path.exists(root):
         os.makedirs(root)
 
@@ -273,6 +276,7 @@ def main(source,
     target_prefix = target.split("/")[-1].split(".owl")[0]
 
     post_root = f"{source_prefix}_{target_prefix}_emb{embedding_size}_e{epochs}_bsk{batch_k}_bsa{batch_a}_a1{a1}_L1{l1}_lr{lr}_m{margin}_AM{am_folds}_k{topk}_th{min_threshold}/"
+    
     root += post_root
     # create root dir if not exists
     if not os.path.exists(root):
@@ -293,19 +297,20 @@ def main(source,
                                             root=root)
 
     if aim in ("predict", "all"):
-        model_file = os.path.join(prev_root+post_root, "modelbin")
-        data_file = os.path.join(prev_root+post_root, "databin")
+        model_file = os.path.join(root, "modelbin")
+        data_file = os.path.join(root, "databin")
         recall, precision, f1 = ranked_predicted_alignments(model_file,
-                                    data_file,
-                                    reference,
-                                    source,
-                                    target,
-                                    topk,
-                                    min_threshold,
-                                    max_threshold,
-                                    root=root)
+                                                            data_file,
+                                                            reference,
+                                                            source,
+                                                            target,
+                                                            topk,
+                                                            min_threshold,
+                                                            max_threshold,
+                                                            root=root,
+                                                            header=True)
 
-        with open(os.path.join(root_copy, "hpo_results.txt"), "a") as f:
+        with open(os.path.join(root, "hpo_results.txt"), "a") as f:
             f.write(f"{source_prefix} {target_prefix} {embedding_size} {epochs} {batch_k} {batch_a} {a1} {l1} {lr} {margin} {am_folds} {topk} {min_threshold} {max_threshold} {recall} {precision} {f1}\n")
 
     else:

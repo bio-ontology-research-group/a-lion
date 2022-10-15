@@ -17,7 +17,7 @@ from mowl.projection import DL2VecProjector
 from mowl.projection.edge import Edge
 
 from alion import ALiOn
-from data import KGDataset, AlignmentDataset
+from data import KGDataset, AlignmentDataset, AllDataset
 from onto import lexical_match, remove_inconsistent_alignments
 
 def seed_everything(seed):
@@ -45,7 +45,7 @@ def load_data(source, target, embedding_size, batch_size_kg, batch_size_alignmen
             target_kg = pkl.load(f)
     else:
         print("Generating Knowledge Graphs")
-        projector = DL2VecProjector(bidirectional_taxonomy=True)
+        projector = DL2VecProjector(bidirectional_taxonomy=False)
 
         source_kg = projector.project(source_dataset.ontology)
         target_kg = projector.project(target_dataset.ontology)
@@ -78,11 +78,14 @@ def load_data(source, target, embedding_size, batch_size_kg, batch_size_alignmen
     source_dataset = KGDataset(source_kg)
     target_dataset = KGDataset(target_kg)
     alignment_dataset = AlignmentDataset(alignments)
+
+    all_dataset = AllDataset(source_dataset, target_dataset, alignment_dataset)
+    
     # Generate Dataloaders
     source_dataloader = DataLoader(source_dataset, batch_size=batch_size_kg, shuffle=True)
     target_dataloader = DataLoader(target_dataset, batch_size=batch_size_kg, shuffle=True)
     alignment_dataloader = DataLoader(alignment_dataset, batch_size=batch_size_alignment, shuffle=True)
-
+    all_dataloader = DataLoader(all_dataset, batch_size=batch_size_kg, shuffle=True)
     
     model = ALiOn(len(source_classes),
                   len(target_classes),
@@ -94,7 +97,7 @@ def load_data(source, target, embedding_size, batch_size_kg, batch_size_alignmen
                   norm)
 
 
-    return model, source_dataloader, target_dataloader, source_class_to_id, target_class_to_id, len(source_classes), len(target_classes), alignment_dataloader
+    return model, source_dataloader, target_dataloader, source_class_to_id, target_class_to_id, len(source_classes), len(target_classes), alignment_dataloader, all_dataloader
     
 def train(model,
           source_dataloader,
@@ -102,6 +105,7 @@ def train(model,
           num_source_classes,
           num_target_classes,
           alignment_dataloader,
+          all_dataloader,
           epochs,
           learning_rate,
           margin,
@@ -111,7 +115,7 @@ def train(model,
     criterion_kg = nn.MarginRankingLoss(margin=margin)
     criterion_alignment = nn.L1Loss()
     criterion_alignment = nn.MSELoss()
-    optimizer = th.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = th.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
 
     best_loss = float("inf")
 
@@ -119,68 +123,109 @@ def train(model,
     model.train()
     for epoch in tqdm(range(epochs)):
         # Train Source KGyes
-        source_loss = 0
-        for batch in source_dataloader:
-            # Generate negatives
-            negative_samples = th.randint(0, num_source_classes, (batch.shape[0], 1))
-            negative_samples = th.cat((batch[:, :-1], negative_samples), dim=1)
+        epoch_loss = 0
+        if True:
+            kg_loss = 0
+            alignment_loss = 0
+            for i, (source_batch, target_batch, source_al, target_al) in enumerate(all_dataloader):
+                # Source batch
+                source_batch = source_batch.to(device)
+                neg_source_batch = th.randint(0, num_source_classes, (source_batch.shape[0], 1), device=device)
+                neg_source_batch = th.cat((source_batch[:, :-1], neg_source_batch), dim=1)
 
-            batch = batch.to(device)
-            negative_samples = negative_samples.to(device)
-            positive_distances, negative_distances = model(batch, negative_samples, 'source')
-            target = -th.ones_like(positive_distances)
-            loss = criterion_kg(positive_distances, negative_distances, target)
-            source_loss += loss
+                pos_source_distances, neg_source_distances = model(source_batch, neg_source_batch, "source")
+                target = -th.ones_like(pos_source_distances)
+                source_loss = criterion_kg(pos_source_distances, neg_source_distances, target)
+
+                # Target batch
+                target_batch = target_batch.to(device)
+                neg_target_batch = th.randint(0, num_target_classes, (target_batch.shape[0], 1), device=device)
+                neg_target_batch = th.cat((target_batch[:, :-1], neg_target_batch), dim=1)
+                pos_target_distances, neg_target_distances = model(target_batch, neg_target_batch, "target")
+                target = -th.ones_like(pos_target_distances)
+                target_loss = criterion_kg(pos_target_distances, neg_target_distances, target)
+                kg_loss += source_loss + target_loss
+
+                # Alignment batch
+                source_al = source_al.to(device)
+                target_al = target_al.to(device)
+                preds, targets = model(source_al, target_al, "alignment")
+                loss = criterion_alignment(preds, targets)
+                alignment_loss += 10*loss
+                
+                epoch_loss = kg_loss + alignment_loss
+
+            kg_loss /= (i + 1)
+            alignment_loss /= (i + 1)
+            epoch_loss /= (i + 1)
+            optimizer.zero_grad()
+            epoch_loss.backward()
+            optimizer.step() 
+                        
+                
+        else:
+            source_loss = 0        
+            for batch in source_dataloader:
+                # Generate negatives
+                negative_samples = th.randint(0, num_source_classes, (batch.shape[0], 1))
+                negative_samples = th.cat((batch[:, :-1], negative_samples), dim=1)
+                
+                batch = batch.to(device)
+                negative_samples = negative_samples.to(device)
+                positive_distances, negative_distances = model(batch, negative_samples, 'source')
+                target = -th.ones_like(positive_distances)
+                loss = criterion_kg(positive_distances, negative_distances, target)
+                source_loss += loss
             
-        # Train Target KG
-        target_loss = 0
-        for batch in target_dataloader:
-            negative_samples = th.randint(0, num_target_classes, (batch.shape[0], 1))
-            negative_samples = th.cat((batch[:, :-1], negative_samples), dim=1)
-
-            batch = batch.to(device)
-            negative_samples = negative_samples.to(device)
-            positive_distances, negative_distances = model(batch, negative_samples, 'target')
-            target = -th.ones_like(positive_distances)
-            loss = criterion_kg(positive_distances, negative_distances, target)
-            target_loss += loss
+            # Train Target KG
+            target_loss = 0
+            for batch in target_dataloader:
+                negative_samples = th.randint(0, num_target_classes, (batch.shape[0], 1))
+                negative_samples = th.cat((batch[:, :-1], negative_samples), dim=1)
+                
+                batch = batch.to(device)
+                negative_samples = negative_samples.to(device)
+                positive_distances, negative_distances = model(batch, negative_samples, 'target')
+                target = -th.ones_like(positive_distances)
+                loss = criterion_kg(positive_distances, negative_distances, target)
+                target_loss += loss
 
         
 
-        # Train Alignment
-        alignment_loss = 0
-        for source, target in alignment_dataloader:
-            source = source.to(device)
-            target = target.to(device)
-            preds, targets = model(source, target, "alignment")
-            alignment_loss += criterion_alignment(preds, targets)
+            # Train Alignment
+            alignment_loss = 0
+            for source, target in alignment_dataloader:
+                source = source.to(device)
+                target = target.to(device)
+                preds, targets = model(source, target, "alignment")
+                alignment_loss += criterion_alignment(preds, targets)
+                
 
+            total_triples = len(source_dataloader.dataset) + len(target_dataloader.dataset) + len(alignment_dataloader.dataset)
 
-        total_triples = len(source_dataloader.dataset) + len(target_dataloader.dataset) + len(alignment_dataloader.dataset)
+            num_source_triples = len(source_dataloader.dataset)
+            num_target_triples = len(target_dataloader.dataset)
+            num_alignment_triples = len(alignment_dataloader.dataset)
 
+            max_num_triples = max(num_source_triples, num_target_triples, num_alignment_triples)
 
+            weight_source = max_num_triples / num_source_triples
+            weight_target = max_num_triples / num_target_triples
+            weight_alignment = 10* max_num_triples / num_alignment_triples
 
-        num_source_triples = len(source_dataloader.dataset)
-        num_target_triples = len(target_dataloader.dataset)
-        num_alignment_triples = len(alignment_dataloader.dataset)
+            kg_loss = weight_source * source_loss + weight_target * target_loss
+            alignment_loss = weight_alignment * alignment_loss
+            loss = kg_loss + alignment_loss
 
-        max_num_triples = max(num_source_triples, num_target_triples, num_alignment_triples)
-
-        weight_source = max_num_triples / num_source_triples
-        weight_target = max_num_triples / num_target_triples
-        weight_alignment = 10* max_num_triples / num_alignment_triples
- 
-        kg_loss = weight_source * source_loss + weight_target * target_loss
-        alignment_loss = weight_alignment * alignment_loss
-        loss = kg_loss + alignment_loss
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
         print(f"Epoch: {epoch}\t KG Loss: {kg_loss}\t Alignment Loss: {alignment_loss}")
 
-        if loss.detach().item() < best_loss:
-            best_loss = loss.detach().item()
+        if epoch_loss.detach().item() < best_loss:
+            best_loss = epoch_loss.detach().item()
             th.save(model.state_dict(), f"{root}/model.pt")
 
     print(f"Traingin Complete. Best Loss: {best_loss}")
@@ -210,10 +255,10 @@ def test(model,source_owl, target_owl, source_class_to_id, target_class_to_id, r
             scores = scores.cpu().numpy()
 
             # Get top k
-            k = 20
+            k = 10
             top_k = np.argsort(scores)[-k:]
             #for trg in top_k:
-                #predictions[(source_id_to_class[src], target_id_to_class[trg])] = (0, scores[trg])
+            #    predictions[(source_id_to_class[src], target_id_to_class[trg])] = (0, scores[trg])
 
             for target, score in zip(list(target_class_to_id), scores):
                 predictions[(source_id_to_class[src], target)] = (0, score)
@@ -341,13 +386,13 @@ def main(source, target, reference, embedding_size, batch_size_kg, batch_size_al
         os.makedirs(root)
 
     print("Loading data...")
-    model, source_dataloader, target_dataloader, source_class_to_id, target_class_to_id, num_source_classes, num_target_classes, alignment_dataloader = load_data(source, target, embedding_size, batch_size_kg, batch_size_alignment, margin, norm, root)
+    model, source_dataloader, target_dataloader, source_class_to_id, target_class_to_id, num_source_classes, num_target_classes, alignment_dataloader, all_dataloader = load_data(source, target, embedding_size, batch_size_kg, batch_size_alignment, margin, norm, root)
     
     if aim in ['all', 'train']:
 
         #Train the model
         print("Training the model...")
-        train(model, source_dataloader, target_dataloader, num_source_classes, num_target_classes,  alignment_dataloader, epochs, learning_rate, margin, device, root)
+        train(model, source_dataloader, target_dataloader, num_source_classes, num_target_classes,  alignment_dataloader, all_dataloader, epochs, learning_rate, margin, device, root)
 
         
     if aim in ["all", "test"]:

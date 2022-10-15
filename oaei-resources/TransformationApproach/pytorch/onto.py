@@ -137,7 +137,7 @@ def lexical_match(source, target, out_root):
     min_entities = min(len(ont1_cls), len(ont2_cls))//2
 
     min_alignments = None
-    #min_entities = 10
+    #min_entities = 100
     while(len(alignments) <= min_entities and accepted_ratio>60):
 
         keys = ont1_label2class.keys()

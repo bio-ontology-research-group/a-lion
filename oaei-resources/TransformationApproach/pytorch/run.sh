@@ -4,13 +4,13 @@ source=$base/MaterialInformation-Reduced.owl
 target=$base/MatOnto.owl
 reference=$base/RefAlign1.tsv
 embedding_size=128
-batch_size_kg=32
-batch_size_alignment=32
+batch_size_kg=64
+batch_size_alignment=64
 epochs=400
 learning_rate=0.0001
 margin=0.5
 device='cuda'
-aim='test'
+aim='all'
 seed=42
 root=$base/testtorch/
 
